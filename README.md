@@ -23,6 +23,7 @@ the payout doesn't.
 
 This product pays out **proportionally to the shock**, capped:
 
+
 ```
 strike = 3%, cap = 8%, notional = $1,000
 
