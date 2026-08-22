@@ -2,6 +2,9 @@
 
 Built at **Aleph Hackathon — Buenos Aires, August 2026**.
 
+**Repo:** https://github.com/lexfrl/inflation-insurance
+**Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; contract addresses below are placeholders until the Base Sepolia deploy runs, so on-chain reads will show empty until then)
+
 A parametric hedge against Argentina's monthly CPI print. You tell it how much
 monthly spending to protect and above what inflation level; it tells you the
 cost today and the maximum payout. No prediction-market jargon anywhere in
@@ -178,12 +181,33 @@ script/Deploy.s.sol --broadcast` any time:
 | CpiInsurance | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
 
 **Base Sepolia** (chain id `84532`) — _pending a funded deployer key,
-see below._
+see below._ The live Vercel frontend currently points at placeholder
+addresses (`0x0...dEaD`) on this chain until that deploy runs.
+
+## CI/CD
+
+- **`.github/workflows/ci.yml`** — every push/PR to `main`: `forge build`
+  + `forge test` (unit, 10k-run fuzz, invariants) + `forge coverage`, and
+  `pnpm lint` + `pnpm build` for the frontend.
+- **`.github/workflows/deploy-frontend.yml`** — every push to `main`: builds
+  and deploys the frontend to Vercel (https://inflation-insurance.vercel.app).
+  Uses the Vercel CLI + an API token (`VERCEL_TOKEN`/`VERCEL_ORG_ID`/
+  `VERCEL_PROJECT_ID` repo secrets) rather than Vercel's native GitHub App,
+  since installing that app requires an interactive OAuth screen.
+- **`.github/workflows/deploy-contracts.yml`** — **manual trigger only**
+  (Actions tab → "Deploy contracts (Base Sepolia)" → Run workflow).
+  Deliberately not on every push: a contract deploy always creates a new
+  address, unlike a web app redeploy. Needs a `BASE_SEPOLIA_DEPLOYER_KEY`
+  repo secret (add your own — generate with `cast wallet new` in your own
+  terminal, fund it via a Base Sepolia faucet, then add it under Settings →
+  Secrets and variables → Actions). After it runs, copy the printed
+  addresses into the Vercel project's env vars and this README.
 
 ## Status / what's left
 
 - [x] Contract, pricing, solvency invariant, full test suite
 - [x] Frontend (buyer / LP / admin flows) verified against local anvil
+- [x] GitHub repo, CI, and Vercel auto-deploy for the frontend
 - [ ] Base Sepolia deployment — blocked on a funded deployer key
 - [ ] Live demo video
 - [ ] DoraHacks submission
