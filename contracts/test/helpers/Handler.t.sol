@@ -87,8 +87,10 @@ contract Handler is Test {
     function withdraw(uint256 actorSeed) external {
         address who = _actor(actorSeed);
         CpiInsurance.Period memory period = insurance.getPeriod(periodId);
-        if (block.timestamp < period.claimDeadline) {
-            vm.warp(period.claimDeadline);
+        // withdraw requires block.timestamp > claimDeadline (strictly), so
+        // land one second past it, not exactly on it.
+        if (block.timestamp <= period.claimDeadline) {
+            vm.warp(period.claimDeadline + 1);
         }
 
         uint256 balBefore = usdc.balanceOf(who);

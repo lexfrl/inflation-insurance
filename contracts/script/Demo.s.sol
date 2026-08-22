@@ -97,6 +97,55 @@ contract Demo is Script {
         console.log("CLAIM_PAYOUT", payout);
     }
 
+    /// Creates an additional period on an ALREADY-DEPLOYED CpiInsurance with
+    /// caller-supplied window lengths, instead of the hardcoded 30/45/180s
+    /// used by `deployAndOpen`. Use this for a period a human clicks through
+    /// live in the frontend -- e.g. 900/1200/3600 seconds -- since a real
+    /// wallet-connect + approve + buy flow cannot fit inside 30 seconds.
+    /// Does NOT deposit or buy anything; drive those from the UI.
+    function createPeriodOnly(
+        address insuranceAddr,
+        string calldata label,
+        uint256 saleSecs,
+        uint256 periodSecs,
+        uint256 claimSecs
+    ) external returns (uint256 periodId) {
+        require(periodSecs > saleSecs, "periodSecs must exceed saleSecs");
+        require(claimSecs > periodSecs, "claimSecs must exceed periodSecs");
+
+        vm.startBroadcast();
+
+        uint256[] memory buckets = new uint256[](4);
+        buckets[0] = 200;
+        buckets[1] = 400;
+        buckets[2] = 600;
+        buckets[3] = 800;
+        uint256[] memory probs = new uint256[](4);
+        probs[0] = 4000;
+        probs[1] = 3000;
+        probs[2] = 2000;
+        probs[3] = 1000;
+
+        CpiInsurance insurance = CpiInsurance(insuranceAddr);
+        CpiInsurance.CreatePeriodParams memory p = CpiInsurance.CreatePeriodParams({
+            label: label,
+            capBps: 800,
+            saleEnd: block.timestamp + saleSecs,
+            periodEnd: block.timestamp + periodSecs,
+            claimDeadline: block.timestamp + claimSecs,
+            loadBps: 12_000,
+            cpiBucketsBps: buckets,
+            probBps: probs
+        });
+        periodId = insurance.createPeriod(p);
+
+        vm.stopBroadcast();
+
+        console.log("PERIOD_ID", periodId);
+        console.log("PERIOD_END_UNIX", block.timestamp + periodSecs);
+        console.log("CLAIM_DEADLINE_UNIX", block.timestamp + claimSecs);
+    }
+
     /// Phase 3: run once real time has passed `claimDeadline`. LP withdraws
     /// its share of what's left in the pool.
     function withdrawPhase(address insuranceAddr, uint256 periodId) external {

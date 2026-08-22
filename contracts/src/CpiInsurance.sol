@@ -169,7 +169,14 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
     function withdraw(uint256 periodId) external nonReentrant {
         Period storage period = _periods[periodId];
         require(period.settled, "not settled");
-        require(block.timestamp >= period.claimDeadline, "claim window open");
+        // Strictly greater than, not >=: `claim` allows block.timestamp <=
+        // claimDeadline, so at t == claimDeadline both functions would
+        // otherwise be callable in the same block. An LP withdrawing first
+        // would compute `remaining` against an outstanding unclaimed policy
+        // and drain funds the buyer is still entitled to, making their
+        // claim() revert on insufficient balance. This one-second gap
+        // guarantees claim() always gets first access to the pool.
+        require(block.timestamp > period.claimDeadline, "claim window open");
         require(!lpWithdrawn[periodId][msg.sender], "already withdrawn");
 
         uint256 shares = lpShares[periodId][msg.sender];

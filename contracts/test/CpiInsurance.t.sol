@@ -285,6 +285,27 @@ contract CpiInsuranceTest is TestBase {
         insurance.withdraw(periodId);
     }
 
+    /// At t == claimDeadline exactly, `claim` is still callable (`<=`) but
+    /// `withdraw` must not be (`>` only) -- otherwise an LP racing to
+    /// withdraw in the same block could drain the pool out from under a
+    /// buyer whose claim is still legitimately pending, making that claim
+    /// revert on insufficient balance.
+    function test_Withdraw_RevertsExactlyAtClaimDeadline_ClaimStillWorks() public {
+        (uint256 periodId, uint256 policyId) = _buyDefaultPolicy();
+        vm.warp(block.timestamp + 2 days + 1);
+        insurance.postSettlement(periodId, 500);
+
+        CpiInsurance.Period memory period = insurance.getPeriod(periodId);
+        vm.warp(period.claimDeadline); // exactly at the boundary
+
+        vm.prank(lp1);
+        vm.expectRevert("claim window open");
+        insurance.withdraw(periodId);
+
+        vm.prank(buyer1);
+        insurance.claim(policyId); // must still succeed
+    }
+
     function test_Withdraw_RevertsIfAlreadyWithdrawn() public {
         uint256 periodId = _createDefaultPeriod();
         vm.prank(lp1);
