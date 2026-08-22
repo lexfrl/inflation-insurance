@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Fixed dark theme (not following system preference): the product's own
+   color choices, applied via Tailwind classes on <body> in layout.tsx.
+   Deliberately no unlayered `body { background: ... }` rule here -- Tailwind
+   v4 wraps its utilities in cascade layers, and an unlayered rule always
+   beats a layered one regardless of specificity, which is what silently
+   overrode the bg-neutral-950 class before this file was simplified. */
