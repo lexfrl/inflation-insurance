@@ -12,7 +12,7 @@ import { LOCAL_TEST_ACCOUNTS, isLocalDev } from "@/lib/wagmi";
 /// Renders nothing when NEXT_PUBLIC_CHAIN_ID isn't the local anvil chain, so
 /// this can never appear in a Base Sepolia / production build.
 export function DevWalletPanel() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status } = useAccount();
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
 
@@ -21,10 +21,23 @@ export function DevWalletPanel() {
   const mockConnectors = connectors.filter((c) => c.type === "mock");
   if (mockConnectors.length === 0) return null;
 
+  // WagmiProvider auto-reconnects on mount by default (needed so a real
+  // wallet like MetaMask stays connected across reloads) -- it fires a
+  // background `reconnect()` for every page load, racing a manual click
+  // on one of these pills right after navigation. The two connect calls
+  // fight over the same connector state, and the click routinely loses:
+  // it visibly does nothing, and a second click is needed once the
+  // reconnect settles. Since these are ephemeral anvil dev accounts with
+  // nothing worth restoring, just wait out the reconnect instead of racing
+  // it.
+  const reconnecting = status === "reconnecting";
+
   return (
     <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-2">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-amber-400">Local test wallets (anvil only):</span>
+        <span className="font-medium text-amber-400">
+          Local test wallets (anvil only){reconnecting && " (reconnecting...)"}:
+        </span>
         {LOCAL_TEST_ACCOUNTS.map((account, i) => {
           const connector = mockConnectors[i];
           const isActive = isConnected && address?.toLowerCase() === account.address.toLowerCase();
@@ -32,7 +45,7 @@ export function DevWalletPanel() {
           return (
             <button
               key={account.address}
-              disabled={isPending || isActive}
+              disabled={isPending || isActive || reconnecting}
               onClick={() => connect({ connector })}
               className={`rounded-full px-3 py-1 ${
                 isActive ? "bg-amber-500 text-black" : "bg-black/30 text-amber-200 hover:bg-black/50"

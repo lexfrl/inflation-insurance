@@ -6,6 +6,7 @@ import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteCont
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
+import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
 
 type Period = {
@@ -106,9 +107,10 @@ function PoolPanel({
   });
   const [shares, shareOfPoolBps] = position ?? [undefined, undefined];
 
-  // refetchInterval rather than manual invalidation after the approve tx --
-  // see the matching comment on the buyer page's allowance read.
-  const { data: allowance } = useReadContract({
+  // refetchInterval as a safety net -- the approve effect below also
+  // force-refetches on success. See the matching comment on the buyer
+  // page's allowance read for why the timer alone isn't enough.
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: contractAddresses.usdt,
     abi: mockUsdtAbi,
     functionName: "allowance",
@@ -120,10 +122,22 @@ function PoolPanel({
 
   const approve = useWriteContract();
   const approveReceipt = useWaitForTransactionReceipt({ hash: approve.data });
+  const approveReverted = txReverted(approveReceipt);
   const deposit = useWriteContract();
   const depositReceipt = useWaitForTransactionReceipt({ hash: deposit.data });
+  const depositReverted = txReverted(depositReceipt);
   const withdraw = useWriteContract();
   const withdrawReceipt = useWaitForTransactionReceipt({ hash: withdraw.data });
+  // Once an LP has withdrawn, `withdraw()` reverts on every subsequent call
+  // ("already withdrawn") but still costs gas -- this query then ends in
+  // isError (see lib/tx.ts), not isSuccess, so the effect below already
+  // skips it; this flag is only needed to surface the error message.
+  const withdrawReverted = txReverted(withdrawReceipt);
+
+  useEffect(() => {
+    if (approveReceipt.isSuccess) refetchAllowance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approveReceipt.isSuccess]);
 
   useEffect(() => {
     if (depositReceipt.isSuccess || withdrawReceipt.isSuccess) {
@@ -204,7 +218,14 @@ function PoolPanel({
 
       <div className="mt-4">
         <button
-          disabled={!isConnected || !canWithdraw || !shares || withdraw.isPending || withdrawReceipt.isLoading}
+          disabled={
+            !isConnected ||
+            !canWithdraw ||
+            !shares ||
+            withdraw.isPending ||
+            withdrawReceipt.isLoading ||
+            withdrawReceipt.isSuccess
+          }
           onClick={() =>
             withdraw.writeContract({
               address: contractAddresses.insurance,
@@ -218,15 +239,26 @@ function PoolPanel({
         >
           {withdraw.isPending || withdrawReceipt.isLoading
             ? "Withdrawing..."
-            : !period.settled
-              ? "Withdraw (available after settlement)"
-              : !canWithdraw
-                ? `Withdraw (available after ${formatDate(period.claimDeadline)})`
-                : "Withdraw my share"}
+            : withdrawReceipt.isSuccess
+              ? "Withdrawn"
+              : !period.settled
+                ? "Withdraw (available after settlement)"
+                : !canWithdraw
+                  ? `Withdraw (available after ${formatDate(period.claimDeadline)})`
+                  : "Withdraw my share"}
         </button>
-        {(approve.error || deposit.error || withdraw.error) && (
+        {/* Pre-flight rejections land in `.error`; a revert that still made
+            it on-chain (e.g. clicking withdraw twice -- "already withdrawn")
+            makes the matching receipt query end in isError instead (see
+            lib/tx.ts), so both need checking or the second click looks like
+            a no-op. */}
+        {(approve.error || deposit.error || withdraw.error || approveReverted || depositReverted || withdrawReverted) && (
           <p className="mt-2 text-center text-sm text-red-400">
-            {(approve.error ?? deposit.error ?? withdraw.error)?.message.split("\n")[0]}
+            {(approve.error ?? deposit.error ?? withdraw.error)?.message.split("\n")[0] ??
+              txErrorMessage(approveReceipt) ??
+              txErrorMessage(depositReceipt) ??
+              txErrorMessage(withdrawReceipt) ??
+              "Transaction reverted on-chain."}
           </p>
         )}
       </div>

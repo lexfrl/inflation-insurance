@@ -12,6 +12,7 @@ import {
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
+import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
 
 type Period = {
@@ -128,12 +129,12 @@ function BuyForm({
   });
   const [premium, maxPayout] = quoteData ?? [undefined, undefined];
 
-  // refetchInterval rather than manually invalidating after the approve tx:
-  // this read gates the Approve/Buy button, and self-healing on a timer is
-  // simpler and more robust than threading a refetch call through
-  // useWaitForTransactionReceipt -- especially since it was never exercised
-  // end-to-end with a real signer during development.
-  const { data: allowance } = useReadContract({
+  // refetchInterval as a safety net, but the approve effect below also
+  // force-refetches on success -- a bare timer left the button stuck on
+  // "Approve USDT" for a full account's first approve during testing,
+  // because this read only starts polling once `address` is defined, and
+  // its first tick can land before the approve tx even lands.
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: contractAddresses.usdt,
     abi: mockUsdtAbi,
     functionName: "allowance",
@@ -146,10 +147,20 @@ function BuyForm({
 
   const approve = useWriteContract();
   const approveReceipt = useWaitForTransactionReceipt({ hash: approve.data });
+  const approveReverted = txReverted(approveReceipt);
   const buy = useWriteContract();
   const buyReceipt = useWaitForTransactionReceipt({ hash: buy.data });
+  const buyReverted = txReverted(buyReceipt);
 
   useEffect(() => {
+    if (approveReceipt.isSuccess) refetchAllowance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approveReceipt.isSuccess]);
+
+  useEffect(() => {
+    // A reverted buyPolicy() (e.g. "insufficient pool backing") makes this
+    // query end in isError, not isSuccess -- see lib/tx.ts. Only refresh
+    // policies on a real win.
     if (buyReceipt.isSuccess) onBought();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyReceipt.isSuccess]);
@@ -249,10 +260,17 @@ function BuyForm({
         {/* Surface write reverts (e.g. "insufficient pool backing" when no
             LP has deposited yet) -- silently swallowing these leaves a
             clicked button that just... does nothing, which is exactly the
-            confusing failure mode this caught during testing. */}
-        {(approve.error || buy.error) && (
+            confusing failure mode this caught during testing. Pre-flight
+            rejections land in `approve.error`/`buy.error`; a revert that
+            still made it on-chain surfaces as `approveReceipt`/`buyReceipt`
+            ending in `isError` instead (see lib/tx.ts), so both need
+            checking. */}
+        {(approve.error || buy.error || approveReverted || buyReverted) && (
           <p className="mt-2 text-center text-sm text-red-400">
-            {(approve.error ?? buy.error)?.message.split("\n")[0]}
+            {(approve.error ?? buy.error)?.message.split("\n")[0] ??
+              txErrorMessage(approveReceipt) ??
+              txErrorMessage(buyReceipt) ??
+              "Transaction reverted on-chain."}
           </p>
         )}
       </div>
@@ -342,6 +360,7 @@ function PolicyRow({
 
   const claim = useWriteContract();
   const claimReceipt = useWaitForTransactionReceipt({ hash: claim.data });
+  const claimReverted = txReverted(claimReceipt);
 
   useEffect(() => {
     if (claimReceipt.isSuccess) onClaimed();
@@ -397,7 +416,11 @@ function PolicyRow({
           </button>
         )}
       </div>
-      {claim.error && <p className="mt-2 text-sm text-red-400">{claim.error.message.split("\n")[0]}</p>}
+      {(claim.error || claimReverted) && (
+        <p className="mt-2 text-sm text-red-400">
+          {claim.error?.message.split("\n")[0] ?? txErrorMessage(claimReceipt) ?? "Transaction reverted on-chain."}
+        </p>
+      )}
     </div>
   );
 }
