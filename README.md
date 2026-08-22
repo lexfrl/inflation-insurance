@@ -97,7 +97,7 @@ flowchart LR
     BUYER -- "buyPolicy(notional, strikeBps)<br/>premium = quote()" --> POOL
     POOL -- "claim()<br/>payout = notional x clamp(CPI - strike, 0, cap - strike)" --> BUYER
 
-    OWNER -- "postSettlement(cpiBps)<br/>once period ends; opens the<br/>claim window from that moment" --> POOL
+    OWNER -- "postSettlement(cpiBps)<br/>once period ends, opens the<br/>claim window from that moment" --> POOL
 
     classDef role fill:#f6f6f6,stroke:#999,color:#111;
     classDef pool fill:#fdece2,stroke:#c74e1e,stroke-width:2px,color:#111;
@@ -209,7 +209,7 @@ sequenceDiagram
         Oracle->>Oracle: fetch settled CPI (e.g. Chainlink Functions from INDEC)
         Oracle->>Pool: postSettlement(periodId, 500)
     end
-    Note over Pool: CPI settles at 5.00%; claim window opens now
+    Note over Pool: CPI settles at 5.00%<br/>claim window opens now
 
     Buyer->>Pool: claim(policyId)
     Pool-->>Buyer: payout 20.00 USDT
