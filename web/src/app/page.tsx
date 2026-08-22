@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { maxUint256 } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -39,6 +40,7 @@ export default function BuyerPage() {
     abi: cpiInsuranceAbi,
     functionName: "listPeriods",
     chainId: activeChain.id,
+    query: { refetchInterval: 4000 },
   });
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
@@ -126,13 +128,18 @@ function BuyForm({
   });
   const [premium, maxPayout] = quoteData ?? [undefined, undefined];
 
+  // refetchInterval rather than manually invalidating after the approve tx:
+  // this read gates the Approve/Buy button, and self-healing on a timer is
+  // simpler and more robust than threading a refetch call through
+  // useWaitForTransactionReceipt -- especially since it was never exercised
+  // end-to-end with a real signer during development.
   const { data: allowance } = useReadContract({
     address: contractAddresses.usdc,
     abi: mockUsdcAbi,
     functionName: "allowance",
     args: address ? [address, contractAddresses.insurance] : undefined,
     chainId: activeChain.id,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 4000 },
   });
 
   const needsApproval = premium !== undefined && (allowance === undefined || allowance < premium);
@@ -207,7 +214,11 @@ function BuyForm({
                 address: contractAddresses.usdc,
                 abi: mockUsdcAbi,
                 functionName: "approve",
-                args: [contractAddresses.insurance, premium!],
+                // Approve max, not the exact premium: moving the strike
+                // slider changes the quote, which would otherwise force a
+                // second approval mid-demo. MockUSDC is a fake testnet
+                // token, so an unlimited approval carries no real risk.
+                args: [contractAddresses.insurance, maxUint256],
                 chainId: activeChain.id,
               })
             }
@@ -241,12 +252,16 @@ function BuyForm({
 }
 
 function MyPolicies({ address }: { address: `0x${string}` }) {
+  // refetchInterval so a just-bought policy shows up here without needing
+  // BuyForm to reach into this sibling component's query -- this is exactly
+  // the read a judge is watching right after they click "Buy protection".
   const { data: policyIds } = useReadContract({
     address: contractAddresses.insurance,
     abi: cpiInsuranceAbi,
     functionName: "getPoliciesOf",
     args: [address],
     chainId: activeChain.id,
+    query: { refetchInterval: 4000 },
   });
 
   const contracts = useMemo(

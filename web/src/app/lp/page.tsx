@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { maxUint256 } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { cpiInsuranceAbi, mockUsdcAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
@@ -27,6 +28,7 @@ export default function LpPage() {
     abi: cpiInsuranceAbi,
     functionName: "listPeriods",
     chainId: activeChain.id,
+    query: { refetchInterval: 4000 },
   });
 
   const [selected, setSelected] = useState(0);
@@ -104,13 +106,15 @@ function PoolPanel({
   });
   const [shares, shareOfPoolBps] = position ?? [undefined, undefined];
 
+  // refetchInterval rather than manual invalidation after the approve tx --
+  // see the matching comment on the buyer page's allowance read.
   const { data: allowance } = useReadContract({
     address: contractAddresses.usdc,
     abi: mockUsdcAbi,
     functionName: "allowance",
     args: address ? [address, contractAddresses.insurance] : undefined,
     chainId: activeChain.id,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 4000 },
   });
   const needsApproval = allowance === undefined || allowance < amount;
 
@@ -170,7 +174,8 @@ function PoolPanel({
                 address: contractAddresses.usdc,
                 abi: mockUsdcAbi,
                 functionName: "approve",
-                args: [contractAddresses.insurance, amount],
+                // Max, not exact amount -- see the buyer page for why.
+                args: [contractAddresses.insurance, maxUint256],
                 chainId: activeChain.id,
               })
             }
