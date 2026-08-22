@@ -131,28 +131,47 @@ exact boundary, by 20,000-run fuzz tests, and by a stateful invariant suite
 
 Concrete numbers, taken straight from the test suite's founder's-example
 fixture (`test_QuoteMatchesFounderExample`, `test_Claim_PaysCorrectAmount`) —
-nothing here is rounded for the README:
+nothing here is rounded for the README. The diagram below is the full pool,
+not just the buyer: it includes the LP who backs this period, and contrasts
+today's trusted-owner settlement with the oracle-fed version from the "What's
+V1" roadmap (that branch is illustrative — V1 ships only the owner path):
 
 ```mermaid
 sequenceDiagram
+    actor LP
     actor Buyer
     participant Pool as CpiInsurance
     actor Owner
+    participant Oracle as Oracle (illustrative)
+
+    LP->>Pool: deposit(periodId, 1000e6)
+    Pool-->>LP: shares minted 1:1
 
     Buyer->>Pool: quote(periodId, 1000e6, 300)
     Pool-->>Buyer: premium 16.80 USDC, maxPayout 50.00 USDC
 
     Buyer->>Pool: approve USDC
     Buyer->>Pool: buyPolicy(periodId, 1000e6, 300)
+    Note right of Buyer: only the 16.80 USDC premium moves —<br/>the $1,000 notional never leaves the buyer's wallet
     Pool-->>Buyer: Policy locked: notional $1,000, strike 3%, cap 8%
 
     Note over Pool: period ends
 
-    Owner->>Pool: postSettlement(periodId, 500)
+    alt Today (V1): trusted owner posts settlement
+        Owner->>Pool: postSettlement(periodId, 500)
+    else Suppose we had an oracle (V2, illustrative)
+        Oracle->>Oracle: fetch settled CPI (e.g. Chainlink Functions from INDEC)
+        Oracle->>Pool: postSettlement(periodId, 500)
+    end
     Note over Pool: CPI settles at 5.00%
 
     Buyer->>Pool: claim(policyId)
     Pool-->>Buyer: payout 20.00 USDC
+
+    Note over Pool: claim window closes
+
+    LP->>Pool: withdraw(periodId)
+    Pool-->>LP: 996.80 USDC (1,000 deposited + 16.80 premium − 20.00 claimed)
 ```
 
 1. **Connect & pick a period.** The buyer connects a wallet and picks the
@@ -166,7 +185,10 @@ sequenceDiagram
    - `maxPayout = 50.00 USDC` (= $1,000 × (8% − 3%))
 4. **Approve & buy.** One USDC approval, then `buyPolicy(periodId, 1000e6,
    300)` pays the 16.80 USDC premium and locks in a `Policy` with that
-   notional, strike, and max payout.
+   notional, strike, and max payout. The buyer only ever sends the
+   **premium** — the `1000e6` notional is a pricing input (how much spending
+   to protect), not USDC the buyer transfers; the $1,000 of real collateral
+   backing the payout comes from the LP's deposit, not the buyer.
 5. **Wait for settlement.** The period ends; the owner calls
    `postSettlement(periodId, 500)` — CPI printed at 5.00%.
 6. **Claim.** `claim(policyId)` pays out
