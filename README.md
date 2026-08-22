@@ -1,14 +1,14 @@
-# Inflation Insurance
+# IPC Shield
 
 Built at **Aleph Hackathon — Buenos Aires, August 2026**.
 
 **Repo:** https://github.com/lexfrl/inflation-insurance
 **Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; contract addresses below are placeholders until the Base Sepolia deploy runs, so on-chain reads will show empty until then)
 
-A parametric hedge against Argentina's monthly CPI print. You tell it how much
-monthly spending to protect and above what inflation level; it tells you the
-cost today and the maximum payout. No prediction-market jargon anywhere in
-the product.
+Self-custodial inflation protection for LATAM, settled in USDT against
+official CPI data. You tell it how much monthly spending to protect and
+above what inflation level; it tells you the cost today and the maximum
+payout. No prediction-market jargon anywhere in the product.
 
 > **Polymarket tells you how likely inflation is. We let you hedge how much
 > inflation hurts you.**
@@ -41,6 +41,22 @@ markets on Polymarket. We package that payoff into one product: choose your
 expenses, choose your strike, buy protection. Prediction markets are the
 primitive; this is the insurance product built on top of it.
 
+## Four judging narratives, one product
+
+| Track | Why it fits | What to show |
+| --- | --- | --- |
+| Crypto / DeFi | A real onchain derivative/hedge, priced and settled entirely onchain | buy → resolve → claim |
+| RWA | Payout is keyed to an official real-world macro index, not a crypto price | INDEC IPC → oracle adapter → contract |
+| Consumer App | A genuine derivative hidden behind a simple UX | "Protect $1,000 above 3%" |
+| Tether | USDT is the settlement asset end to end, via a self-custodial WDK wallet flow | connect wallet → USDT balance → pay premium → claim payout |
+
+And a fifth framing, for judges evaluating social impact: inflation is
+effectively an unpredictable tax on households. Sophisticated investors have
+derivatives to manage macro risk; ordinary consumers don't. IPC Shield makes
+inflation protection accessible with a few dollars of USDT — turning a
+financial instrument normally available to institutions into a consumer
+financial-resilience product.
+
 ## How it's priced (the actual differentiator)
 
 Polymarket prices one event: `P(CPI > 3%)`. This contract prices the whole
@@ -51,12 +67,13 @@ strike-shifted payoff:
 Fair value = E[max(min(CPI, cap) − strike, 0)]
 ```
 
-`CpiInsurance.quote()` does this on-chain: each period stores a discrete CPI
-histogram (`cpiBucketsBps` / `probBps`, operator-supplied from recent INDEC
-prints), and the premium is that histogram's expected payout times a load
-factor (`loadBps`, e.g. `12000` = 1.2× EV). The load factor exists because at
-premium == EV exactly, LPs have zero expected return and no reason to
-deposit — it's the risk premium LPs are paid to underwrite the pool.
+`InflationHedge.quote()` does this on-chain: each period stores a discrete
+CPI histogram (`cpiBucketsBps` / `probBps`, operator-supplied from recent
+INDEC prints), and the premium is that histogram's expected payout times a
+load factor (`loadBps`, e.g. `12000` = 1.2× EV). The load factor exists
+because at premium == EV exactly, LPs have zero expected return and no
+reason to deposit — it's the risk premium LPs are paid to underwrite the
+pool.
 
 This is also the **single source of truth** for pricing: the frontend never
 recomputes premium/payout in JavaScript, it only ever displays what
@@ -72,15 +89,15 @@ flowchart LR
     LP["LP<br/>liquidity provider"]
     BUYER["Buyer<br/>insured person"]
     OWNER["Owner<br/>trusted operator"]
-    POOL(["CpiInsurance<br/>one Period pool<br/>collateral + premiums"])
+    POOL(["InflationHedge<br/>one Period pool<br/>collateral + premiums, in USDT"])
 
-    LP -- "deposit(usdc)<br/>shares minted 1:1" --> POOL
+    LP -- "deposit(usdt)<br/>shares minted 1:1, closes once<br/>underwriting starts" --> POOL
     POOL -- "withdraw()<br/>pro-rata share of what's left" --> LP
 
     BUYER -- "buyPolicy(notional, strikeBps)<br/>premium = quote()" --> POOL
     POOL -- "claim()<br/>payout = notional x clamp(CPI - strike, 0, cap - strike)" --> BUYER
 
-    OWNER -- "postSettlement(cpiBps)<br/>once period ends" --> POOL
+    OWNER -- "postSettlement(cpiBps)<br/>once period ends; opens the<br/>claim window from that moment" --> POOL
 
     classDef role fill:#f6f6f6,stroke:#999,color:#111;
     classDef pool fill:#fdece2,stroke:#c74e1e,stroke-width:2px,color:#111;
@@ -88,8 +105,9 @@ flowchart LR
     class POOL pool;
 ```
 
-- **LP** funds the pool and takes the other side of the risk: deposits USDC
-  pre-sale, withdraws principal + premiums − claims after the claim window
+- **LP** funds the pool and takes the other side of the risk: deposits USDT
+  pre-sale (only until the *first* policy is sold — see "LP fairness"
+  below), withdraws principal + premiums − claims after the claim window
   closes.
 - **Buyer** (the insured person) pays a premium for a policy and, if the
   settled CPI clears their strike, claims a payout capped at
@@ -101,14 +119,16 @@ flowchart LR
 In code terms, that's one contract and a `periods` mapping:
 
 ```
-CpiInsurance.sol
+InflationHedge.sol
 ├── Period (per CPI period, e.g. "Argentina CPI, Sep 2026")
-│   ├── LPs deposit USDC -> shares, 1:1                    [deposit]
+│   ├── LPs deposit USDT -> shares, 1:1                    [deposit]
+│   │     closes once the first policy is sold
 │   ├── Buyers pay a premium for a Policy                  [buyPolicy]
 │   │     Policy = { notional, strikeBps, maxPayout, ... }
 │   ├── Owner posts the settled CPI once the period ends    [postSettlement]
+│   │     derives claimDeadline = block.timestamp + claimWindowSecs
 │   ├── Buyers claim their payout                           [claim]
-│   └── LPs withdraw their pro-rata share of what's left    [withdraw]
+│   └── LPs withdraw their pro-rata share of what's left     [withdraw]
 ```
 
 No factory, no per-pool deployment.
@@ -127,6 +147,32 @@ only capacity check the contract needs; it's covered by unit tests at the
 exact boundary, by 20,000-run fuzz tests, and by a stateful invariant suite
 (`forge test --match-contract Invariant`).
 
+**LP fairness**, enforced on every deposit:
+
+```solidity
+require(period.totalMaxLiability == 0, "underwriting already started");
+```
+
+Shares are minted 1:1 with deposited USDT, which is only fair while the pool
+holds nothing but LP capital. Once the first policy is sold, premiums are
+already sitting in the pool — a deposit after that point would buy a
+pro-rata cut of gains it never underwrote. Closing deposits at the first
+sale keeps every LP's shares priced against the same pool state.
+
+**Claim window**, derived at settlement, not fixed at creation:
+
+```solidity
+period.claimDeadline = block.timestamp + period.claimWindowSecs; // set inside postSettlement
+```
+
+An earlier design stored `claimDeadline` as an absolute timestamp fixed when
+the period was created. That meant a late settlement — posted after that
+fixed deadline had already passed — could permanently lock buyers out of
+`claim()` while `withdraw()` was immediately callable, letting LPs walk off
+with premiums that should have paid out. Deriving the deadline from the
+settlement call itself closes that gap: buyers always get a full
+`claimWindowSecs` to claim, no matter how late settlement posts.
+
 ## Example: a buyer's walkthrough
 
 Concrete numbers, taken straight from the test suite's founder's-example
@@ -140,19 +186,19 @@ V1" roadmap (that branch is illustrative — V1 ships only the owner path):
 sequenceDiagram
     actor LP
     actor Buyer
-    participant Pool as CpiInsurance
+    participant Pool as InflationHedge
     actor Owner
-    participant Oracle as Oracle (illustrative)
+    participant Oracle as IInflationOracle (illustrative)
 
     LP->>Pool: deposit(periodId, 1000e6)
     Pool-->>LP: shares minted 1:1
 
     Buyer->>Pool: quote(periodId, 1000e6, 300)
-    Pool-->>Buyer: premium 16.80 USDC, maxPayout 50.00 USDC
+    Pool-->>Buyer: premium 16.80 USDT, maxPayout 50.00 USDT
 
-    Buyer->>Pool: approve USDC
+    Buyer->>Pool: approve USDT
     Buyer->>Pool: buyPolicy(periodId, 1000e6, 300)
-    Note right of Buyer: only the 16.80 USDC premium moves —<br/>the $1,000 notional never leaves the buyer's wallet
+    Note right of Buyer: only the 16.80 USDT premium moves —<br/>the $1,000 notional never leaves the buyer's wallet
     Pool-->>Buyer: Policy locked: notional $1,000, strike 3%, cap 8%
 
     Note over Pool: period ends
@@ -163,15 +209,15 @@ sequenceDiagram
         Oracle->>Oracle: fetch settled CPI (e.g. Chainlink Functions from INDEC)
         Oracle->>Pool: postSettlement(periodId, 500)
     end
-    Note over Pool: CPI settles at 5.00%
+    Note over Pool: CPI settles at 5.00%; claim window opens now
 
     Buyer->>Pool: claim(policyId)
-    Pool-->>Buyer: payout 20.00 USDC
+    Pool-->>Buyer: payout 20.00 USDT
 
     Note over Pool: claim window closes
 
     LP->>Pool: withdraw(periodId)
-    Pool-->>LP: 996.80 USDC (1,000 deposited + 16.80 premium − 20.00 claimed)
+    Pool-->>LP: 996.80 USDT (1,000 deposited + 16.80 premium − 20.00 claimed)
 ```
 
 1. **Connect & pick a period.** The buyer connects a wallet and picks the
@@ -181,19 +227,21 @@ sequenceDiagram
    above 3% inflation.
 3. **Read the quote.** `quote(periodId, 1000e6, 300)` — called live, same
    code path the frontend and `buyPolicy` both use — returns:
-   - `premium = 16.80 USDC`
-   - `maxPayout = 50.00 USDC` (= $1,000 × (8% − 3%))
-4. **Approve & buy.** One USDC approval, then `buyPolicy(periodId, 1000e6,
-   300)` pays the 16.80 USDC premium and locks in a `Policy` with that
+   - `premium = 16.80 USDT`
+   - `maxPayout = 50.00 USDT` (= $1,000 × (8% − 3%))
+4. **Approve & buy.** One USDT approval, then `buyPolicy(periodId, 1000e6,
+   300)` pays the 16.80 USDT premium and locks in a `Policy` with that
    notional, strike, and max payout. The buyer only ever sends the
    **premium** — the `1000e6` notional is a pricing input (how much spending
-   to protect), not USDC the buyer transfers; the $1,000 of real collateral
+   to protect), not USDT the buyer transfers; the $1,000 of real collateral
    backing the payout comes from the LP's deposit, not the buyer.
 5. **Wait for settlement.** The period ends; the owner calls
-   `postSettlement(periodId, 500)` — CPI printed at 5.00%.
+   `postSettlement(periodId, 500)` — CPI printed at 5.00%. This is also the
+   moment the claim window opens: `claimDeadline = block.timestamp +
+   claimWindowSecs`.
 6. **Claim.** `claim(policyId)` pays out
-   `min(5%, 8%) − 3% = 2%` of the $1,000 notional — **20.00 USDC** — turning
-   a 16.80 USDC premium into a 20.00 USDC payout because the shock (5%)
+   `min(5%, 8%) − 3% = 2%` of the $1,000 notional — **20.00 USDT** — turning
+   a 16.80 USDT premium into a 20.00 USDT payout because the shock (5%)
    cleared the strike (3%).
 
 Two outcomes worth naming explicitly:
@@ -211,8 +259,11 @@ withdraw whatever's left in the pool, unclaimed payouts included.
 ## What's V1 (stated plainly, not hidden)
 
 - **Trusted oracle.** CPI settlement is posted by a single owner address —
-  there's no decentralized oracle. V2: Chainlink Functions pulling from
-  INDEC, or a signed-oracle pattern.
+  there's no decentralized oracle. `IInflationOracle` (`resolved()` /
+  `cpiBps()`) is defined as the V2 seam a resolver would implement — a
+  signed INDEC attestor, UMA, GenLayer — but it's not wired into
+  `postSettlement` today; swapping a real resolver in later never has to
+  touch pricing or settlement math.
 - **No settlement escape hatch.** If the owner never calls
   `postSettlement`, LP funds are locked in that period permanently — there's
   no timeout/refund path. This is a real cost of the V1 trust model, not an
@@ -222,20 +273,28 @@ withdraw whatever's left in the pool, unclaimed payouts included.
   live market. V2: aggregate real prediction-market prices or a growing
   on-chain track record.
 - **No factory.** One contract holds all periods. V2:
-  `CpiInsuranceFactory` deploying minimal-proxy pools per period/operator.
+  `InflationHedgeFactory` deploying minimal-proxy pools per period/operator.
 - **Policies aren't tokenized.** A policy is a struct + owner mapping, not
   an ERC721. V2: make them transferable/tradeable.
+
+**Deliberately not built**, even though some of it is "obvious DeFi": LP
+positions as a Uniswap-style AMM/LMSR market, ERC-1155 YES/NO shares, a
+secondary market for policies, cross-chain deployment, a governance token, a
+DAO, liquidity mining. Every one of these trades demo reliability this close
+to submission for surface area that doesn't move any of the judging
+narratives above.
 
 ## Repo layout
 
 ```
 contracts/          Foundry project
-  src/CpiInsurance.sol   core contract
-  src/MockUSDC.sol       open-mint testnet USDC stand-in
-  test/                  24 tests: unit, fuzz (20k runs), stateful invariant
-  script/Deploy.s.sol    deploys MockUSDC + CpiInsurance
-  script/Demo.s.sol      3-phase real-broadcast lifecycle demo
-  script/demo.sh         orchestrates the 3 phases with real wall-clock waits
+  src/InflationHedge.sol   core contract
+  src/MockUSDT.sol         open-mint testnet USDT stand-in
+  src/IInflationOracle.sol V2 oracle-adapter seam (unwired, documented only)
+  test/                    29 tests: unit, fuzz (20k runs), stateful invariant
+  script/Deploy.s.sol      deploys MockUSDT + InflationHedge
+  script/Demo.s.sol        3-phase real-broadcast lifecycle demo
+  script/demo.sh           orchestrates the 3 phases with real wall-clock waits
 web/               Next.js + wagmi/viem + RainbowKit frontend
   src/app/page.tsx       buyer flow (protect spending)
   src/app/lp/page.tsx    LP flow (provide liquidity)
@@ -249,7 +308,7 @@ web/               Next.js + wagmi/viem + RainbowKit frontend
 ```
 cd contracts
 forge build
-forge test -vvv                                    # 24 tests, all green
+forge test -vvv                                    # 29 tests, all green
 forge test --match-contract Fuzz --fuzz-runs 20000  # pricing/solvency properties
 forge test --match-contract Invariant -vvv          # stateful solvency fuzzing
 ```
@@ -268,8 +327,9 @@ bash script/demo.sh
 ```
 
 Deploys fresh contracts, creates a period, deposits, buys a policy, waits
-for the period to end, posts settlement, claims, waits for the claim window
-to close, and withdraws — printing the USDC balance change at each step.
+for the period to end, posts settlement (opening the claim window), claims,
+waits for the claim window to close, and withdraws — printing the USDT
+balance change at each step.
 
 ### Frontend
 
@@ -292,10 +352,10 @@ The frontend reads its ABI directly from `contracts/out` via
 values used during development, redeployed fresh by `forge script
 script/Deploy.s.sol --broadcast` any time:
 
-| Contract     | Address |
-|--------------|---------|
-| MockUSDC     | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
-| CpiInsurance | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
+| Contract        | Address |
+|------------------|---------|
+| MockUSDT         | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
+| InflationHedge   | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
 
 **Base Sepolia** (chain id `84532`) — _pending a funded deployer key,
 see below._ The live Vercel frontend currently points at placeholder
@@ -322,10 +382,14 @@ addresses (`0x0...dEaD`) on this chain until that deploy runs.
 
 ## Status / what's left
 
-- [x] Contract, pricing, solvency invariant, full test suite
+- [x] Contract, pricing, solvency + LP-fairness invariants, full test suite
+- [x] USDT collateral end to end (contract, tests, deploy/demo scripts)
+- [x] Derived claim window (settlement-time-based, not creation-time-fixed)
 - [x] Frontend (buyer / LP / admin flows) verified against local anvil
 - [x] GitHub repo, CI, and Vercel auto-deploy for the frontend
 - [ ] Base Sepolia deployment — blocked on a funded deployer key
+- [ ] Real Tether WDK wallet integration (connect, balance, signed txs)
+- [ ] Payoff curve + pricing/EV breakdown in the buyer UI
 - [ ] Live demo video
 - [ ] DoraHacks submission
 

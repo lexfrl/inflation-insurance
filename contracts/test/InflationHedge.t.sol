@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {TestBase} from "./helpers/TestBase.t.sol";
-import {CpiInsurance} from "../src/CpiInsurance.sol";
+import {InflationHedge} from "../src/InflationHedge.sol";
 
-contract CpiInsuranceTest is TestBase {
+contract InflationHedgeTest is TestBase {
     // ---------------------------------------------------------------------
     // Pricing: hand-computed against the founder's worked example
     // ---------------------------------------------------------------------
@@ -13,7 +13,7 @@ contract CpiInsuranceTest is TestBase {
     /// Premium is hand-computed from the default histogram:
     ///   ev = 4000*0 + 3000*100 + 2000*300 + 1000*500 = 1,400,000
     ///   premium = notional * ev * loadBps / 1e12
-    ///           = 1000e6 * 1,400,000 * 12,000 / 1e12 = 16,800,000 (16.8 USDC)
+    ///           = 1000e6 * 1,400,000 * 12,000 / 1e12 = 16,800,000 (16.8 USDT)
     function test_QuoteMatchesFounderExample() public {
         uint256 periodId = _createDefaultPeriod();
 
@@ -38,8 +38,8 @@ contract CpiInsuranceTest is TestBase {
         uint256[] memory probs = new uint256[](1);
         probs[0] = 10_000;
 
-        CpiInsurance.CreatePeriodParams memory p =
-            _customParams(CAP, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, block.timestamp + 5 days);
+        InflationHedge.CreatePeriodParams memory p =
+            _customParams(CAP, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, CLAIM_WINDOW);
         uint256 periodId = insurance.createPeriod(p);
 
         vm.expectRevert("unpriceable: premium >= maxPayout");
@@ -58,8 +58,8 @@ contract CpiInsuranceTest is TestBase {
         probs[0] = 4000;
         probs[1] = 4000; // sums to 8000, not 10000
 
-        CpiInsurance.CreatePeriodParams memory p =
-            _customParams(CAP, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, block.timestamp + 5 days);
+        InflationHedge.CreatePeriodParams memory p =
+            _customParams(CAP, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, CLAIM_WINDOW);
 
         vm.expectRevert("probabilities must sum to 10000");
         insurance.createPeriod(p);
@@ -67,11 +67,19 @@ contract CpiInsuranceTest is TestBase {
 
     function test_CreatePeriod_RevertsIfLoadBelowOne() public {
         (uint256[] memory buckets, uint256[] memory probs) = _defaultHistogram();
-        CpiInsurance.CreatePeriodParams memory p = _customParams(
-            CAP, 9_999, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, block.timestamp + 5 days
-        );
+        InflationHedge.CreatePeriodParams memory p =
+            _customParams(CAP, 9_999, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, CLAIM_WINDOW);
 
         vm.expectRevert("load must be >= 1x");
+        insurance.createPeriod(p);
+    }
+
+    function test_CreatePeriod_RevertsIfClaimWindowIsZero() public {
+        (uint256[] memory buckets, uint256[] memory probs) = _defaultHistogram();
+        InflationHedge.CreatePeriodParams memory p =
+            _customParams(CAP, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, 0);
+
+        vm.expectRevert("claim window must be > 0");
         insurance.createPeriod(p);
     }
 
@@ -100,7 +108,7 @@ contract CpiInsuranceTest is TestBase {
     // buyPolicy: solvency invariant boundary
     // ---------------------------------------------------------------------
 
-    /// LP backs the pool with exactly 10 USDC. Two purchases exactly consume
+    /// LP backs the pool with exactly 10 USDT. Two purchases exactly consume
     /// all backing available *at the time each is bought*: policy1's
     /// maxPayout exactly equals the collateral; policy2's maxPayout exactly
     /// equals the remaining capacity policy1's own premium opened up. Both
@@ -126,7 +134,7 @@ contract CpiInsuranceTest is TestBase {
         vm.prank(buyer2);
         insurance.buyPolicy(periodId, notional2, STRIKE);
 
-        CpiInsurance.Period memory period = insurance.getPeriod(periodId);
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
         uint256 remaining = period.totalCollateral + period.totalPremiums - period.totalMaxLiability;
         assertEq(remaining, premium2, "remaining capacity should equal policy2's own premium");
     }
@@ -145,7 +153,7 @@ contract CpiInsuranceTest is TestBase {
         vm.prank(buyer2);
         insurance.buyPolicy(periodId, notional2, STRIKE); // fills remaining capacity exactly
 
-        CpiInsurance.Period memory period = insurance.getPeriod(periodId);
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
         uint256 remaining = period.totalCollateral + period.totalPremiums - period.totalMaxLiability;
 
         // Any policy whose maxPayout is 1 more than remaining capacity must
@@ -156,6 +164,40 @@ contract CpiInsuranceTest is TestBase {
         vm.prank(buyer1);
         vm.expectRevert("insufficient pool backing");
         insurance.buyPolicy(periodId, notional3, STRIKE);
+    }
+
+    // ---------------------------------------------------------------------
+    // deposit: LP dilution guard
+    // ---------------------------------------------------------------------
+
+    /// Before the fix, a late LP could deposit after buyers had already paid
+    /// premiums into the pool, and immediately own a pro-rata cut of gains
+    /// it never underwrote. Closing deposits once underwriting has started
+    /// (totalMaxLiability > 0) removes that free-ride window entirely.
+    function test_Deposit_RevertsAfterUnderwritingStarted() public {
+        uint256 periodId = _createDefaultPeriod();
+
+        vm.prank(lp1);
+        insurance.deposit(periodId, 1000e6);
+
+        vm.prank(buyer1);
+        insurance.buyPolicy(periodId, 1000e6, STRIKE); // totalMaxLiability > 0 from here on
+
+        vm.prank(lp2);
+        vm.expectRevert("underwriting already started");
+        insurance.deposit(periodId, 1000e6);
+    }
+
+    function test_Deposit_SucceedsBeforeUnderwritingStarted() public {
+        uint256 periodId = _createDefaultPeriod();
+
+        vm.prank(lp1);
+        insurance.deposit(periodId, 500e6);
+        vm.prank(lp2);
+        insurance.deposit(periodId, 500e6); // still fine, no policy bought yet
+
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
+        assertEq(period.totalCollateral, 1000e6);
     }
 
     // ---------------------------------------------------------------------
@@ -176,6 +218,38 @@ contract CpiInsuranceTest is TestBase {
 
         vm.expectRevert("already settled");
         insurance.postSettlement(periodId, 600);
+    }
+
+    /// The core of the settlement/claim-deadline fix: claimDeadline is
+    /// derived from *this call's* timestamp (settledAt + claimWindowSecs),
+    /// not from an absolute deadline fixed back at period creation. Settling
+    /// very late must not shrink or skip the claim window -- the buyer still
+    /// gets a full claimWindowSecs to claim from whenever settlement actually
+    /// posts.
+    function test_PostSettlement_ClaimDeadlineIsDerivedFromSettlementTime() public {
+        (uint256 periodId, uint256 policyId) = _buyDefaultPolicy();
+
+        // Settle very late -- long after any *fixed* deadline set at
+        // creation time would have already passed under the old design.
+        vm.warp(block.timestamp + 2 days + 100 days);
+        insurance.postSettlement(periodId, 500);
+
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
+        assertEq(period.claimDeadline, block.timestamp + CLAIM_WINDOW, "claim deadline must start at settlement");
+
+        // Pin the exact inversion the old bug caused: right after this late
+        // settlement, withdraw() must NOT be immediately callable (it used
+        // to be, since the old fixed claimDeadline had already passed) --
+        // and claim() must still succeed. Under the old design this
+        // ordering was flipped: LPs could drain the pool here while the
+        // buyer's claim was permanently unreachable.
+        vm.prank(lp1);
+        vm.expectRevert("claim window open");
+        insurance.withdraw(periodId);
+
+        vm.prank(buyer1);
+        insurance.claim(policyId);
+        assertTrue(insurance.getPolicy(policyId).claimed);
     }
 
     // ---------------------------------------------------------------------
@@ -215,7 +289,7 @@ contract CpiInsuranceTest is TestBase {
         vm.warp(block.timestamp + 2 days + 1);
         insurance.postSettlement(periodId, 500);
 
-        vm.warp(block.timestamp + 5 days + 1); // past claimDeadline
+        vm.warp(block.timestamp + CLAIM_WINDOW + 1); // past claimDeadline
 
         vm.prank(buyer1);
         vm.expectRevert("claim window closed");
@@ -227,10 +301,10 @@ contract CpiInsuranceTest is TestBase {
         vm.warp(block.timestamp + 2 days + 1);
         insurance.postSettlement(periodId, 500); // CPI 5% -> excess = 200bps
 
-        uint256 balBefore = usdc.balanceOf(buyer1);
+        uint256 balBefore = usdt.balanceOf(buyer1);
         vm.prank(buyer1);
         insurance.claim(policyId);
-        uint256 balAfter = usdc.balanceOf(buyer1);
+        uint256 balAfter = usdt.balanceOf(buyer1);
 
         // payout = notional * excess / 10000 = 1000e6 * 200 / 10000 = 20e6
         assertEq(balAfter - balBefore, 20e6);
@@ -257,17 +331,17 @@ contract CpiInsuranceTest is TestBase {
         vm.prank(buyer1);
         insurance.claim(policyId);
 
-        vm.warp(block.timestamp + 5 days + 1); // past claimDeadline
+        vm.warp(block.timestamp + CLAIM_WINDOW + 1); // past claimDeadline
 
-        uint256 lp1BalBefore = usdc.balanceOf(lp1);
+        uint256 lp1BalBefore = usdt.balanceOf(lp1);
         vm.prank(lp1);
         insurance.withdraw(periodId);
-        uint256 lp1Amount = usdc.balanceOf(lp1) - lp1BalBefore;
+        uint256 lp1Amount = usdt.balanceOf(lp1) - lp1BalBefore;
 
-        uint256 lp2BalBefore = usdc.balanceOf(lp2);
+        uint256 lp2BalBefore = usdt.balanceOf(lp2);
         vm.prank(lp2);
         insurance.withdraw(periodId);
-        uint256 lp2Amount = usdc.balanceOf(lp2) - lp2BalBefore;
+        uint256 lp2Amount = usdt.balanceOf(lp2) - lp2BalBefore;
 
         // remaining = totalCollateral(100e6) + totalPremiums(13,440,000) - totalClaimed(16e6) = 97,440,000
         assertEq(lp1Amount, 29_232_000, "LP1 (30%) share of remaining pool");
@@ -295,7 +369,7 @@ contract CpiInsuranceTest is TestBase {
         vm.warp(block.timestamp + 2 days + 1);
         insurance.postSettlement(periodId, 500);
 
-        CpiInsurance.Period memory period = insurance.getPeriod(periodId);
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
         vm.warp(period.claimDeadline); // exactly at the boundary
 
         vm.prank(lp1);
@@ -313,7 +387,7 @@ contract CpiInsuranceTest is TestBase {
 
         vm.warp(block.timestamp + 2 days + 1);
         insurance.postSettlement(periodId, 100);
-        vm.warp(block.timestamp + 5 days + 1);
+        vm.warp(block.timestamp + CLAIM_WINDOW + 1);
 
         vm.prank(lp1);
         insurance.withdraw(periodId);

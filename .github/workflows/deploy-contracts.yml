@@ -2,10 +2,10 @@ name: Deploy contracts (Base Sepolia)
 
 # Manual trigger only -- NOT on every push. Contracts don't "redeploy in
 # place" like a web app; every run of this workflow creates a brand-new
-# CpiInsurance + MockUSDC address. Run it deliberately (Actions tab -> this
+# InflationHedge + MockUSDT address. Run it deliberately (Actions tab -> this
 # workflow -> Run workflow), then copy the printed addresses into:
 #   - web/.env.local.example is just a template; set the real values in
-#     Vercel's project env vars (NEXT_PUBLIC_USDC_ADDRESS /
+#     Vercel's project env vars (NEXT_PUBLIC_USDT_ADDRESS /
 #     NEXT_PUBLIC_INSURANCE_ADDRESS) so the live frontend picks them up.
 #   - README.md's "Deployed addresses" table, for anyone reading the repo.
 on:
@@ -50,19 +50,19 @@ jobs:
             "${VERIFY_FLAGS[@]}" \
             2>&1 | tee /tmp/deploy.log
 
-          USDC=$(grep "MockUSDC:" /tmp/deploy.log | awk '{print $2}')
-          INSURANCE=$(grep "CpiInsurance:" /tmp/deploy.log | awk '{print $2}')
+          USDT=$(grep "MockUSDT:" /tmp/deploy.log | awk '{print $2}')
+          INSURANCE=$(grep "InflationHedge:" /tmp/deploy.log | awk '{print $2}')
 
           {
             echo "## Base Sepolia deployment"
             echo ""
             echo "| Contract | Address |"
             echo "|----------|---------|"
-            echo "| MockUSDC | \`$USDC\` |"
-            echo "| CpiInsurance | \`$INSURANCE\` |"
+            echo "| MockUSDT | \`$USDT\` |"
+            echo "| InflationHedge | \`$INSURANCE\` |"
             echo ""
             echo "Next steps:"
-            echo "1. Set these as \`NEXT_PUBLIC_USDC_ADDRESS\` / \`NEXT_PUBLIC_INSURANCE_ADDRESS\` in the Vercel project's env vars, then redeploy the frontend."
+            echo "1. Set these as \`NEXT_PUBLIC_USDT_ADDRESS\` / \`NEXT_PUBLIC_INSURANCE_ADDRESS\` in the Vercel project's env vars, then redeploy the frontend."
             echo "2. Update the addresses table in README.md."
             echo "3. Create the pitch + demo periods (see contracts/script/Demo.s.sol::createPeriodOnly) via \`cast send\`."
           } >> "$GITHUB_STEP_SUMMARY"

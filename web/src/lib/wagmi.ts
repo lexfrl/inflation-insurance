@@ -28,7 +28,7 @@ export const LOCAL_TEST_ACCOUNTS = [
 ] as const;
 
 const { connectors: walletConnectors } = getDefaultWallets({
-  appName: "Inflation Insurance",
+  appName: "IPC Shield",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
 });
 
@@ -50,6 +50,6 @@ export const config = createConfig({
 });
 
 export const contractAddresses = {
-  usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS as `0x${string}`,
+  usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS as `0x${string}`,
   insurance: process.env.NEXT_PUBLIC_INSURANCE_ADDRESS as `0x${string}`,
 };

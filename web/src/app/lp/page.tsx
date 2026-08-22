@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { maxUint256 } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { cpiInsuranceAbi, mockUsdcAbi } from "@/lib/generated";
+import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
-import { formatBps, formatDate, formatUsdc, parseUsdc } from "@/lib/format";
+import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
 type Period = {
@@ -25,7 +25,7 @@ export default function LpPage() {
 
   const { data: periods, refetch: refetchPeriods } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "listPeriods",
     chainId: activeChain.id,
     query: { refetchInterval: 4000 },
@@ -39,7 +39,7 @@ export default function LpPage() {
       <div>
         <h1 className="text-2xl font-semibold">Provide liquidity</h1>
         <p className="mt-1 text-white/60">
-          Back a protection period with USDC and earn the premiums buyers pay for coverage,
+          Back a protection period with USDT and earn the premiums buyers pay for coverage,
           minus whatever gets claimed.
         </p>
       </div>
@@ -91,14 +91,14 @@ function PoolPanel({
   onChanged: () => void;
 }) {
   const [amountInput, setAmountInput] = useState("1000");
-  const amount = parseUsdc(amountInput);
+  const amount = parseUsdt(amountInput);
   const now = useNow();
   const saleOpen = now < Number(period.saleEnd);
   const canWithdraw = period.settled && now > Number(period.claimDeadline);
 
   const { data: position, refetch: refetchPosition } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "lpPosition",
     args: address ? [BigInt(periodId), address] : undefined,
     chainId: activeChain.id,
@@ -109,8 +109,8 @@ function PoolPanel({
   // refetchInterval rather than manual invalidation after the approve tx --
   // see the matching comment on the buyer page's allowance read.
   const { data: allowance } = useReadContract({
-    address: contractAddresses.usdc,
-    abi: mockUsdcAbi,
+    address: contractAddresses.usdt,
+    abi: mockUsdtAbi,
     functionName: "allowance",
     args: address ? [address, contractAddresses.insurance] : undefined,
     chainId: activeChain.id,
@@ -138,15 +138,15 @@ function PoolPanel({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
       <div className="grid grid-cols-2 gap-4 rounded-xl bg-black/30 p-4 text-center sm:grid-cols-4">
-        <Stat label="Collateral" value={`${formatUsdc(period.totalCollateral)} USDC`} />
-        <Stat label="Premiums collected" value={`${formatUsdc(period.totalPremiums)} USDC`} />
-        <Stat label="Max liability sold" value={`${formatUsdc(period.totalMaxLiability)} USDC`} />
-        <Stat label="Pool remaining" value={`${formatUsdc(remaining)} USDC`} />
+        <Stat label="Collateral" value={`${formatUsdt(period.totalCollateral)} USDT`} />
+        <Stat label="Premiums collected" value={`${formatUsdt(period.totalPremiums)} USDT`} />
+        <Stat label="Max liability sold" value={`${formatUsdt(period.totalMaxLiability)} USDT`} />
+        <Stat label="Pool remaining" value={`${formatUsdt(remaining)} USDT`} />
       </div>
 
       {shares !== undefined && shares > 0n && (
         <p className="mt-4 text-sm text-white/60">
-          Your position: {formatUsdc(shares)} USDC deposited ({formatBps(shareOfPoolBps)} of the pool)
+          Your position: {formatUsdt(shares)} USDT deposited ({formatBps(shareOfPoolBps)} of the pool)
         </p>
       )}
 
@@ -171,8 +171,8 @@ function PoolPanel({
             disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
             onClick={() =>
               approve.writeContract({
-                address: contractAddresses.usdc,
-                abi: mockUsdcAbi,
+                address: contractAddresses.usdt,
+                abi: mockUsdtAbi,
                 functionName: "approve",
                 // Max, not exact amount -- see the buyer page for why.
                 args: [contractAddresses.insurance, maxUint256],
@@ -181,7 +181,7 @@ function PoolPanel({
             }
             className="rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
           >
-            {approve.isPending || approveReceipt.isLoading ? "Approving..." : "Approve USDC"}
+            {approve.isPending || approveReceipt.isLoading ? "Approving..." : "Approve USDT"}
           </button>
         ) : (
           <button
@@ -189,7 +189,7 @@ function PoolPanel({
             onClick={() =>
               deposit.writeContract({
                 address: contractAddresses.insurance,
-                abi: cpiInsuranceAbi,
+                abi: inflationHedgeAbi,
                 functionName: "deposit",
                 args: [BigInt(periodId), amount],
                 chainId: activeChain.id,
@@ -208,7 +208,7 @@ function PoolPanel({
           onClick={() =>
             withdraw.writeContract({
               address: contractAddresses.insurance,
-              abi: cpiInsuranceAbi,
+              abi: inflationHedgeAbi,
               functionName: "withdraw",
               args: [BigInt(periodId)],
               chainId: activeChain.id,

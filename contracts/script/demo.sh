@@ -31,15 +31,14 @@ echo "== Phase 1: deploy, create period, LP deposits, buyer buys a policy =="
 OUT1=$(run script/Demo.s.sol --sig "deployAndOpen()")
 echo "$OUT1"
 
-USDC_ADDRESS=$(echo "$OUT1" | awk '/USDC_ADDRESS/ {print $2}')
+USDT_ADDRESS=$(echo "$OUT1" | awk '/USDT_ADDRESS/ {print $2}')
 INSURANCE_ADDRESS=$(echo "$OUT1" | awk '/INSURANCE_ADDRESS/ {print $2}')
 PERIOD_ID=$(echo "$OUT1" | awk '/PERIOD_ID/ {print $2}')
 POLICY_ID=$(echo "$OUT1" | awk '/POLICY_ID/ {print $2}')
 PERIOD_END_UNIX=$(echo "$OUT1" | awk '/PERIOD_END_UNIX/ {print $2}')
-CLAIM_DEADLINE_UNIX=$(echo "$OUT1" | awk '/CLAIM_DEADLINE_UNIX/ {print $2}')
 
-echo "MockUSDC:      $USDC_ADDRESS"
-echo "CpiInsurance:  $INSURANCE_ADDRESS"
+echo "MockUSDT:        $USDT_ADDRESS"
+echo "InflationHedge:  $INSURANCE_ADDRESS"
 echo "Period / Policy ids: $PERIOD_ID / $POLICY_ID"
 
 NOW=$(date +%s)
@@ -53,6 +52,10 @@ mine_if_local
 echo "== Phase 2: owner posts CPI settlement, buyer claims =="
 OUT2=$(run script/Demo.s.sol --sig "settle(address,uint256,uint256,uint256)" "$INSURANCE_ADDRESS" "$PERIOD_ID" "$POLICY_ID" "$SETTLE_CPI_BPS")
 echo "$OUT2"
+
+# claimDeadline is derived at settlement time (settledAt + claimWindowSecs),
+# not known until phase 2 actually runs -- see Demo.s.sol.
+CLAIM_DEADLINE_UNIX=$(echo "$OUT2" | awk '/CLAIM_DEADLINE_UNIX/ {print $2}')
 
 NOW=$(date +%s)
 WAIT2=$(( CLAIM_DEADLINE_UNIX - NOW + 2 ))

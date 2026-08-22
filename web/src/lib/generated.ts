@@ -1,12 +1,12 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CpiInsurance
+// InflationHedge
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export const cpiInsuranceAbi = [
+export const inflationHedgeAbi = [
   {
     type: 'constructor',
     inputs: [
-      { name: 'usdc_', internalType: 'contract IERC20', type: 'address' },
+      { name: 'usdt_', internalType: 'contract IERC20', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -40,14 +40,14 @@ export const cpiInsuranceAbi = [
     inputs: [
       {
         name: 'p',
-        internalType: 'struct CpiInsurance.CreatePeriodParams',
+        internalType: 'struct InflationHedge.CreatePeriodParams',
         type: 'tuple',
         components: [
           { name: 'label', internalType: 'string', type: 'string' },
           { name: 'capBps', internalType: 'uint256', type: 'uint256' },
           { name: 'saleEnd', internalType: 'uint256', type: 'uint256' },
           { name: 'periodEnd', internalType: 'uint256', type: 'uint256' },
-          { name: 'claimDeadline', internalType: 'uint256', type: 'uint256' },
+          { name: 'claimWindowSecs', internalType: 'uint256', type: 'uint256' },
           { name: 'loadBps', internalType: 'uint256', type: 'uint256' },
           {
             name: 'cpiBucketsBps',
@@ -79,13 +79,14 @@ export const cpiInsuranceAbi = [
     outputs: [
       {
         name: '',
-        internalType: 'struct CpiInsurance.Period',
+        internalType: 'struct InflationHedge.Period',
         type: 'tuple',
         components: [
           { name: 'label', internalType: 'string', type: 'string' },
           { name: 'capBps', internalType: 'uint256', type: 'uint256' },
           { name: 'saleEnd', internalType: 'uint256', type: 'uint256' },
           { name: 'periodEnd', internalType: 'uint256', type: 'uint256' },
+          { name: 'claimWindowSecs', internalType: 'uint256', type: 'uint256' },
           { name: 'claimDeadline', internalType: 'uint256', type: 'uint256' },
           { name: 'loadBps', internalType: 'uint256', type: 'uint256' },
           {
@@ -128,7 +129,7 @@ export const cpiInsuranceAbi = [
     outputs: [
       {
         name: '',
-        internalType: 'struct CpiInsurance.Policy',
+        internalType: 'struct InflationHedge.Policy',
         type: 'tuple',
         components: [
           { name: 'periodId', internalType: 'uint256', type: 'uint256' },
@@ -150,13 +151,14 @@ export const cpiInsuranceAbi = [
     outputs: [
       {
         name: 'all',
-        internalType: 'struct CpiInsurance.Period[]',
+        internalType: 'struct InflationHedge.Period[]',
         type: 'tuple[]',
         components: [
           { name: 'label', internalType: 'string', type: 'string' },
           { name: 'capBps', internalType: 'uint256', type: 'uint256' },
           { name: 'saleEnd', internalType: 'uint256', type: 'uint256' },
           { name: 'periodEnd', internalType: 'uint256', type: 'uint256' },
+          { name: 'claimWindowSecs', internalType: 'uint256', type: 'uint256' },
           { name: 'claimDeadline', internalType: 'uint256', type: 'uint256' },
           { name: 'loadBps', internalType: 'uint256', type: 'uint256' },
           {
@@ -280,7 +282,7 @@ export const cpiInsuranceAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'usdc',
+    name: 'usdt',
     outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
     stateMutability: 'view',
   },
@@ -391,7 +393,7 @@ export const cpiInsuranceAbi = [
         indexed: false,
       },
       {
-        name: 'claimDeadline',
+        name: 'claimWindowSecs',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
@@ -470,6 +472,12 @@ export const cpiInsuranceAbi = [
         type: 'uint256',
         indexed: false,
       },
+      {
+        name: 'claimDeadline',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
     ],
     name: 'SettlementPosted',
   },
@@ -512,10 +520,10 @@ export const cpiInsuranceAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MockUSDC
+// MockUSDT
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export const mockUsdcAbi = [
+export const mockUsdtAbi = [
   { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
   {
     type: 'function',

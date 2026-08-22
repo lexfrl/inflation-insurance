@@ -1,7 +1,8 @@
 # contracts/
 
-Foundry project for `CpiInsurance`. See the [top-level README](../README.md)
-for the pitch, architecture, pricing model, and run instructions.
+Foundry project for `InflationHedge`, the IPC Shield core contract. See the
+[top-level README](../README.md) for the pitch, architecture, pricing model,
+and run instructions.
 
 Quick reference:
 

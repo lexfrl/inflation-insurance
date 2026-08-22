@@ -9,9 +9,9 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { cpiInsuranceAbi, mockUsdcAbi } from "@/lib/generated";
+import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
-import { formatBps, formatDate, formatUsdc, parseUsdc } from "@/lib/format";
+import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
 type Period = {
@@ -37,7 +37,7 @@ export default function BuyerPage() {
 
   const { data: periods, refetch: refetchPeriods } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "listPeriods",
     chainId: activeChain.id,
     query: { refetchInterval: 4000 },
@@ -115,12 +115,12 @@ function BuyForm({
   const [notionalInput, setNotionalInput] = useState("1000");
   const [strikeBps, setStrikeBps] = useState(300);
 
-  const notional = parseUsdc(notionalInput);
+  const notional = parseUsdt(notionalInput);
   const capBps = Number(period.capBps);
 
   const { data: quoteData, isFetching: quoting } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "quote",
     args: [BigInt(periodId), notional, BigInt(strikeBps)],
     chainId: activeChain.id,
@@ -134,8 +134,8 @@ function BuyForm({
   // useWaitForTransactionReceipt -- especially since it was never exercised
   // end-to-end with a real signer during development.
   const { data: allowance } = useReadContract({
-    address: contractAddresses.usdc,
-    abi: mockUsdcAbi,
+    address: contractAddresses.usdt,
+    abi: mockUsdtAbi,
     functionName: "allowance",
     args: address ? [address, contractAddresses.insurance] : undefined,
     chainId: activeChain.id,
@@ -167,7 +167,7 @@ function BuyForm({
               onChange={(e) => setNotionalInput(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2"
             />
-            <span className="text-white/50">USDC</span>
+            <span className="text-white/50">USDT</span>
           </div>
         </label>
 
@@ -190,13 +190,13 @@ function BuyForm({
         <div>
           <div className="text-xs uppercase text-white/40">Cost today</div>
           <div className="text-xl font-semibold">
-            {quoting ? "..." : formatUsdc(premium)} <span className="text-sm text-white/50">USDC</span>
+            {quoting ? "..." : formatUsdt(premium)} <span className="text-sm text-white/50">USDT</span>
           </div>
         </div>
         <div>
           <div className="text-xs uppercase text-white/40">Maximum payout</div>
           <div className="text-xl font-semibold">
-            {quoting ? "..." : formatUsdc(maxPayout)} <span className="text-sm text-white/50">USDC</span>
+            {quoting ? "..." : formatUsdt(maxPayout)} <span className="text-sm text-white/50">USDT</span>
           </div>
         </div>
       </div>
@@ -211,12 +211,12 @@ function BuyForm({
             disabled={approve.isPending || approveReceipt.isLoading || premium === undefined}
             onClick={() =>
               approve.writeContract({
-                address: contractAddresses.usdc,
-                abi: mockUsdcAbi,
+                address: contractAddresses.usdt,
+                abi: mockUsdtAbi,
                 functionName: "approve",
                 // Approve max, not the exact premium: moving the strike
                 // slider changes the quote, which would otherwise force a
-                // second approval mid-demo. MockUSDC is a fake testnet
+                // second approval mid-demo. MockUSDT is a fake testnet
                 // token, so an unlimited approval carries no real risk.
                 args: [contractAddresses.insurance, maxUint256],
                 chainId: activeChain.id,
@@ -224,7 +224,7 @@ function BuyForm({
             }
             className="w-full rounded-lg bg-white py-3 font-medium text-black disabled:opacity-50"
           >
-            {approve.isPending || approveReceipt.isLoading ? "Approving USDC..." : "Approve USDC"}
+            {approve.isPending || approveReceipt.isLoading ? "Approving USDT..." : "Approve USDT"}
           </button>
         ) : (
           <button
@@ -232,7 +232,7 @@ function BuyForm({
             onClick={() =>
               buy.writeContract({
                 address: contractAddresses.insurance,
-                abi: cpiInsuranceAbi,
+                abi: inflationHedgeAbi,
                 functionName: "buyPolicy",
                 args: [BigInt(periodId), notional, BigInt(strikeBps)],
                 chainId: activeChain.id,
@@ -266,7 +266,7 @@ function MyPolicies({ address }: { address: `0x${string}` }) {
   // the read a judge is watching right after they click "Buy protection".
   const { data: policyIds } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "getPoliciesOf",
     args: [address],
     chainId: activeChain.id,
@@ -277,7 +277,7 @@ function MyPolicies({ address }: { address: `0x${string}` }) {
     () =>
       (policyIds ?? []).map((id) => ({
         address: contractAddresses.insurance,
-        abi: cpiInsuranceAbi,
+        abi: inflationHedgeAbi,
         functionName: "getPolicy" as const,
         args: [id] as const,
         chainId: activeChain.id,
@@ -334,7 +334,7 @@ function PolicyRow({
 }) {
   const { data: period } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "getPeriod",
     args: [policy.periodId],
     chainId: activeChain.id,
@@ -351,18 +351,24 @@ function PolicyRow({
   const now = useNow();
   const settled = (period as Period | undefined)?.settled ?? false;
   const claimDeadline = (period as Period | undefined)?.claimDeadline;
-  const expired = claimDeadline !== undefined && now > Number(claimDeadline);
+  // claimDeadline is derived by the contract at settlement time (settledAt +
+  // claimWindowSecs) -- see InflationHedge.postSettlement. Pre-settlement
+  // it's just 0, not "unset" at the type level (it's a bigint, never
+  // `undefined`), so this must gate on `settled` too or it renders a claim
+  // deadline of the Unix epoch before any period has actually settled.
+  const hasClaimDeadline = settled && claimDeadline !== undefined;
+  const expired = hasClaimDeadline && now > Number(claimDeadline);
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between">
         <div>
           <div className="font-medium">
-            Protect {formatUsdc(policy.notional)} USDC above {formatBps(policy.strikeBps)}
+            Protect {formatUsdt(policy.notional)} USDT above {formatBps(policy.strikeBps)}
           </div>
           <div className="text-sm text-white/50">
-            Max payout {formatUsdc(policy.maxPayout)} USDC · Premium paid {formatUsdc(policy.premiumPaid)} USDC
-            {claimDeadline !== undefined && <> · Claim by {formatDate(claimDeadline)}</>}
+            Max payout {formatUsdt(policy.maxPayout)} USDT · Premium paid {formatUsdt(policy.premiumPaid)} USDT
+            {hasClaimDeadline && <> · Claim by {formatDate(claimDeadline)}</>}
           </div>
         </div>
         {policy.claimed ? (
@@ -373,7 +379,7 @@ function PolicyRow({
             onClick={() =>
               claim.writeContract({
                 address: contractAddresses.insurance,
-                abi: cpiInsuranceAbi,
+                abi: inflationHedgeAbi,
                 functionName: "claim",
                 args: [policyId],
                 chainId: activeChain.id,
