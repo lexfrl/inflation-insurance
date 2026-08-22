@@ -224,6 +224,11 @@ function PoolPanel({
                 ? `Withdraw (available after ${formatDate(period.claimDeadline)})`
                 : "Withdraw my share"}
         </button>
+        {(approve.error || deposit.error || withdraw.error) && (
+          <p className="mt-2 text-center text-sm text-red-400">
+            {(approve.error ?? deposit.error ?? withdraw.error)?.message.split("\n")[0]}
+          </p>
+        )}
       </div>
     </div>
   );

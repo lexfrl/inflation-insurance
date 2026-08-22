@@ -246,6 +246,15 @@ function BuyForm({
         {buyReceipt.isSuccess && (
           <p className="mt-2 text-center text-sm text-emerald-400">Protection purchased.</p>
         )}
+        {/* Surface write reverts (e.g. "insufficient pool backing" when no
+            LP has deposited yet) -- silently swallowing these leaves a
+            clicked button that just... does nothing, which is exactly the
+            confusing failure mode this caught during testing. */}
+        {(approve.error || buy.error) && (
+          <p className="mt-2 text-center text-sm text-red-400">
+            {(approve.error ?? buy.error)?.message.split("\n")[0]}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -345,41 +354,44 @@ function PolicyRow({
   const expired = claimDeadline !== undefined && now > Number(claimDeadline);
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4">
-      <div>
-        <div className="font-medium">
-          Protect {formatUsdc(policy.notional)} USDC above {formatBps(policy.strikeBps)}
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-medium">
+            Protect {formatUsdc(policy.notional)} USDC above {formatBps(policy.strikeBps)}
+          </div>
+          <div className="text-sm text-white/50">
+            Max payout {formatUsdc(policy.maxPayout)} USDC · Premium paid {formatUsdc(policy.premiumPaid)} USDC
+            {claimDeadline !== undefined && <> · Claim by {formatDate(claimDeadline)}</>}
+          </div>
         </div>
-        <div className="text-sm text-white/50">
-          Max payout {formatUsdc(policy.maxPayout)} USDC · Premium paid {formatUsdc(policy.premiumPaid)} USDC
-          {claimDeadline !== undefined && <> · Claim by {formatDate(claimDeadline)}</>}
-        </div>
+        {policy.claimed ? (
+          <span className="text-sm text-white/40">Claimed</span>
+        ) : (
+          <button
+            disabled={!settled || expired || claim.isPending || claimReceipt.isLoading}
+            onClick={() =>
+              claim.writeContract({
+                address: contractAddresses.insurance,
+                abi: cpiInsuranceAbi,
+                functionName: "claim",
+                args: [policyId],
+                chainId: activeChain.id,
+              })
+            }
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
+          >
+            {claim.isPending || claimReceipt.isLoading
+              ? "Claiming..."
+              : !settled
+                ? "Awaiting settlement"
+                : expired
+                  ? "Claim window closed"
+                  : "Claim payout"}
+          </button>
+        )}
       </div>
-      {policy.claimed ? (
-        <span className="text-sm text-white/40">Claimed</span>
-      ) : (
-        <button
-          disabled={!settled || expired || claim.isPending || claimReceipt.isLoading}
-          onClick={() =>
-            claim.writeContract({
-              address: contractAddresses.insurance,
-              abi: cpiInsuranceAbi,
-              functionName: "claim",
-              args: [policyId],
-              chainId: activeChain.id,
-            })
-          }
-          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
-        >
-          {claim.isPending || claimReceipt.isLoading
-            ? "Claiming..."
-            : !settled
-              ? "Awaiting settlement"
-              : expired
-                ? "Claim window closed"
-                : "Claim payout"}
-        </button>
-      )}
+      {claim.error && <p className="mt-2 text-sm text-red-400">{claim.error.message.split("\n")[0]}</p>}
     </div>
   );
 }
