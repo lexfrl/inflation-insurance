@@ -1,0 +1,31 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+optimizer = true
+optimizer_runs = 200
+# via_ir is deliberately NOT enabled: it lets the Yul optimizer CSE repeated
+# `block.timestamp` reads within one function (valid for real EVM semantics --
+# timestamp is genuinely constant per transaction -- but it silently breaks
+# forge's `vm.warp` cheatcode when a test calls it more than once with the
+# same literal offset expression). Scripts that hit stack-too-deep are
+# refactored into smaller internal functions instead.
+
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/",
+]
+
+[rpc_endpoints]
+base_sepolia = "https://sepolia.base.org"
+localhost = "http://127.0.0.1:8545"
+
+[etherscan]
+base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
+
+[invariant]
+runs = 64
+depth = 50
+fail_on_revert = false
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
