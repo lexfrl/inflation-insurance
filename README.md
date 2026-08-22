@@ -64,6 +64,42 @@ recomputes premium/payout in JavaScript, it only ever displays what
 
 ## Architecture
 
+Three roles share one pool per period — nobody but the buyer ever sees a
+"share" or a "probability":
+
+```mermaid
+flowchart LR
+    LP["LP<br/>liquidity provider"]
+    BUYER["Buyer<br/>insured person"]
+    OWNER["Owner<br/>trusted operator"]
+    POOL(["CpiInsurance<br/>one Period pool<br/>collateral + premiums"])
+
+    LP -- "deposit(usdc)<br/>shares minted 1:1" --> POOL
+    POOL -- "withdraw()<br/>pro-rata share of what's left" --> LP
+
+    BUYER -- "buyPolicy(notional, strikeBps)<br/>premium = quote()" --> POOL
+    POOL -- "claim()<br/>payout = notional x clamp(CPI - strike, 0, cap - strike)" --> BUYER
+
+    OWNER -- "postSettlement(cpiBps)<br/>once period ends" --> POOL
+
+    classDef role fill:#f6f6f6,stroke:#999,color:#111;
+    classDef pool fill:#fdece2,stroke:#c74e1e,stroke-width:2px,color:#111;
+    class LP,BUYER,OWNER role;
+    class POOL pool;
+```
+
+- **LP** funds the pool and takes the other side of the risk: deposits USDC
+  pre-sale, withdraws principal + premiums − claims after the claim window
+  closes.
+- **Buyer** (the insured person) pays a premium for a policy and, if the
+  settled CPI clears their strike, claims a payout capped at
+  `notional × (cap − strike)`.
+- **Owner** is the V1 trust root: creates each period's terms and histogram,
+  then posts the single settled CPI value everything pays out against. No
+  decentralized oracle yet (see "What's V1" below).
+
+In code terms, that's one contract and a `periods` mapping:
+
 ```
 CpiInsurance.sol
 ├── Period (per CPI period, e.g. "Argentina CPI, Sep 2026")
@@ -75,7 +111,7 @@ CpiInsurance.sol
 │   └── LPs withdraw their pro-rata share of what's left    [withdraw]
 ```
 
-One contract, a `periods` mapping — no factory, no per-pool deployment.
+No factory, no per-pool deployment.
 `quote()` is a `view` function so both `buyPolicy` and the frontend call the
 exact same pricing code.
 
