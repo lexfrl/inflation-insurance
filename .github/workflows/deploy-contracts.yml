@@ -1,0 +1,68 @@
+name: Deploy contracts (Base Sepolia)
+
+# Manual trigger only -- NOT on every push. Contracts don't "redeploy in
+# place" like a web app; every run of this workflow creates a brand-new
+# CpiInsurance + MockUSDC address. Run it deliberately (Actions tab -> this
+# workflow -> Run workflow), then copy the printed addresses into:
+#   - web/.env.local.example is just a template; set the real values in
+#     Vercel's project env vars (NEXT_PUBLIC_USDC_ADDRESS /
+#     NEXT_PUBLIC_INSURANCE_ADDRESS) so the live frontend picks them up.
+#   - README.md's "Deployed addresses" table, for anyone reading the repo.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: forge script Deploy.s.sol -> Base Sepolia
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    environment: base-sepolia # optional: add a required-reviewers gate in
+      # repo Settings -> Environments -> base-sepolia if you want a manual
+      # approval step before this can spend real (testnet) funds.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Deploy
+        env:
+          PRIVATE_KEY: ${{ secrets.BASE_SEPOLIA_DEPLOYER_KEY }}
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PRIVATE_KEY:-}" ]; then
+            echo "::error::BASE_SEPOLIA_DEPLOYER_KEY secret is not set. Add it under Settings -> Secrets and variables -> Actions before running this workflow."
+            exit 1
+          fi
+
+          VERIFY_FLAGS=()
+          if [ -n "${BASESCAN_API_KEY:-}" ]; then
+            VERIFY_FLAGS=(--verify)
+          fi
+
+          forge script script/Deploy.s.sol \
+            --rpc-url base_sepolia \
+            --broadcast \
+            --private-key "$PRIVATE_KEY" \
+            "${VERIFY_FLAGS[@]}" \
+            2>&1 | tee /tmp/deploy.log
+
+          USDC=$(grep "MockUSDC:" /tmp/deploy.log | awk '{print $2}')
+          INSURANCE=$(grep "CpiInsurance:" /tmp/deploy.log | awk '{print $2}')
+
+          {
+            echo "## Base Sepolia deployment"
+            echo ""
+            echo "| Contract | Address |"
+            echo "|----------|---------|"
+            echo "| MockUSDC | \`$USDC\` |"
+            echo "| CpiInsurance | \`$INSURANCE\` |"
+            echo ""
+            echo "Next steps:"
+            echo "1. Set these as \`NEXT_PUBLIC_USDC_ADDRESS\` / \`NEXT_PUBLIC_INSURANCE_ADDRESS\` in the Vercel project's env vars, then redeploy the frontend."
+            echo "2. Update the addresses table in README.md."
+            echo "3. Create the pitch + demo periods (see contracts/script/Demo.s.sol::createPeriodOnly) via \`cast send\`."
+          } >> "$GITHUB_STEP_SUMMARY"

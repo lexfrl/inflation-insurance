@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: Contracts (build + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: forge build
+        run: forge build --sizes
+
+      - name: forge test (unit + fuzz + invariant)
+        run: forge test -vvv --fuzz-runs 10000
+
+      - name: forge coverage summary
+        run: forge coverage --report summary
+
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build contracts (frontend's wagmi codegen reads contracts/out)
+        working-directory: contracts
+        run: forge build
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate ABI bindings
+        run: pnpm wagmi generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        env:
+          # Dummy values so the build doesn't fail on missing env vars --
+          # real values come from Vercel's own env var config at deploy time.
+          NEXT_PUBLIC_CHAIN_ID: "84532"
+          NEXT_PUBLIC_RPC_URL: "https://sepolia.base.org"
+          NEXT_PUBLIC_USDC_ADDRESS: "0x0000000000000000000000000000000000dEaD"
+          NEXT_PUBLIC_INSURANCE_ADDRESS: "0x0000000000000000000000000000000000dEaD"
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ""
+        run: pnpm build
