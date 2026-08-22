@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { inflationHedgeAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
+import { txErrorMessage, txReverted } from "@/lib/tx";
 
 // Deliberately rough / unstyled: this is the operator-only surface, not the
 // pitch-facing product. Owner-gating is enforced by the contract regardless
@@ -103,7 +104,14 @@ function CreatePeriodForm() {
         {write.isPending || receipt.isLoading ? "Creating..." : "Create period"}
       </button>
       {receipt.isSuccess && <p className="mt-2 text-sm text-emerald-400">Period created.</p>}
-      {write.error && <p className="mt-2 text-sm text-red-400">{write.error.message}</p>}
+      {/* A revert that still made it on-chain (e.g. probabilities not
+          summing to 10000) makes this query end in isError instead of
+          isSuccess (see lib/tx.ts) -- `write.error` alone misses it. */}
+      {(write.error || txReverted(receipt)) && (
+        <p className="mt-2 text-sm text-red-400">
+          {write.error?.message ?? txErrorMessage(receipt) ?? "Transaction reverted on-chain."}
+        </p>
+      )}
     </div>
   );
 }
@@ -140,7 +148,11 @@ function PostSettlementForm() {
         {write.isPending || receipt.isLoading ? "Posting..." : "Post settlement"}
       </button>
       {receipt.isSuccess && <p className="mt-2 text-sm text-emerald-400">Settlement posted.</p>}
-      {write.error && <p className="mt-2 text-sm text-red-400">{write.error.message}</p>}
+      {(write.error || txReverted(receipt)) && (
+        <p className="mt-2 text-sm text-red-400">
+          {write.error?.message ?? txErrorMessage(receipt) ?? "Transaction reverted on-chain."}
+        </p>
+      )}
     </div>
   );
 }
