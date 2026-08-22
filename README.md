@@ -127,6 +127,65 @@ only capacity check the contract needs; it's covered by unit tests at the
 exact boundary, by 20,000-run fuzz tests, and by a stateful invariant suite
 (`forge test --match-contract Invariant`).
 
+## Example: a buyer's walkthrough
+
+Concrete numbers, taken straight from the test suite's founder's-example
+fixture (`test_QuoteMatchesFounderExample`, `test_Claim_PaysCorrectAmount`) —
+nothing here is rounded for the README:
+
+```mermaid
+sequenceDiagram
+    actor Buyer
+    participant Pool as CpiInsurance
+    actor Owner
+
+    Buyer->>Pool: quote(periodId, 1000e6, 300)
+    Pool-->>Buyer: premium 16.80 USDC, maxPayout 50.00 USDC
+
+    Buyer->>Pool: approve USDC
+    Buyer->>Pool: buyPolicy(periodId, 1000e6, 300)
+    Pool-->>Buyer: Policy locked: notional $1,000, strike 3%, cap 8%
+
+    Note over Pool: period ends
+
+    Owner->>Pool: postSettlement(periodId, 500)
+    Note over Pool: CPI settles at 5.00%
+
+    Buyer->>Pool: claim(policyId)
+    Pool-->>Buyer: payout 20.00 USDC
+```
+
+1. **Connect & pick a period.** The buyer connects a wallet and picks the
+   open "Argentina CPI, Sep 2026" period, capped at 8%, priced off a
+   histogram of `{2%, 4%, 6%, 8%}` at `{40%, 30%, 20%, 10%}`.
+2. **Set spend & strike.** They want $1,000/month of spending protected
+   above 3% inflation.
+3. **Read the quote.** `quote(periodId, 1000e6, 300)` — called live, same
+   code path the frontend and `buyPolicy` both use — returns:
+   - `premium = 16.80 USDC`
+   - `maxPayout = 50.00 USDC` (= $1,000 × (8% − 3%))
+4. **Approve & buy.** One USDC approval, then `buyPolicy(periodId, 1000e6,
+   300)` pays the 16.80 USDC premium and locks in a `Policy` with that
+   notional, strike, and max payout.
+5. **Wait for settlement.** The period ends; the owner calls
+   `postSettlement(periodId, 500)` — CPI printed at 5.00%.
+6. **Claim.** `claim(policyId)` pays out
+   `min(5%, 8%) − 3% = 2%` of the $1,000 notional — **20.00 USDC** — turning
+   a 16.80 USDC premium into a 20.00 USDC payout because the shock (5%)
+   cleared the strike (3%).
+
+Two outcomes worth naming explicitly:
+
+- **CPI settles at or below 3%:** the policy pays out $0. The premium isn't
+  refunded — exactly like a traditional insurance premium, it bought
+  protection for the period, not a guaranteed return.
+- **CPI settles at or above 8% (the cap):** payout is capped at $50, no
+  matter how far above 8% the print lands — the same cap that keeps the
+  pool's liability bounded and solvent.
+
+Miss the claim deadline and the payout right simply lapses; LPs later
+withdraw whatever's left in the pool, unclaimed payouts included.
+
 ## What's V1 (stated plainly, not hidden)
 
 - **Trusted oracle.** CPI settlement is posted by a single owner address —
