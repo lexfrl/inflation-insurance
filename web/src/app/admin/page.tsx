@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { cpiInsuranceAbi } from "@/lib/generated";
+import { inflationHedgeAbi } from "@/lib/generated";
 import { activeChain, contractAddresses } from "@/lib/wagmi";
 
 // Deliberately rough / unstyled: this is the operator-only surface, not the
@@ -15,7 +15,7 @@ export default function AdminPage() {
 
   const { data: owner } = useReadContract({
     address: contractAddresses.insurance,
-    abi: cpiInsuranceAbi,
+    abi: inflationHedgeAbi,
     functionName: "owner",
     chainId: activeChain.id,
   });
@@ -60,7 +60,7 @@ function CreatePeriodForm() {
     const now = Math.floor(Date.now() / 1000);
     write.writeContract({
       address: contractAddresses.insurance,
-      abi: cpiInsuranceAbi,
+      abi: inflationHedgeAbi,
       functionName: "createPeriod",
       args: [
         {
@@ -68,7 +68,11 @@ function CreatePeriodForm() {
           capBps: BigInt(capBps),
           saleEnd: BigInt(now + Number(saleSecs)),
           periodEnd: BigInt(now + Number(periodSecs)),
-          claimDeadline: BigInt(now + Number(claimSecs)),
+          // A duration, not an absolute timestamp -- the contract derives
+          // the actual claimDeadline at postSettlement time (settledAt +
+          // claimWindowSecs), so late settlement can never shrink or skip
+          // the claim window. See InflationHedge.postSettlement NatSpec.
+          claimWindowSecs: BigInt(claimSecs),
           loadBps: BigInt(loadBps),
           cpiBucketsBps: buckets.split(",").map((s) => BigInt(s.trim())),
           probBps: probs.split(",").map((s) => BigInt(s.trim())),
@@ -86,7 +90,7 @@ function CreatePeriodForm() {
         <Field label="Cap (bps)" value={capBps} onChange={setCapBps} />
         <Field label="Sale window (secs from now)" value={saleSecs} onChange={setSaleSecs} />
         <Field label="Period window (secs from now)" value={periodSecs} onChange={setPeriodSecs} />
-        <Field label="Claim deadline (secs from now)" value={claimSecs} onChange={setClaimSecs} />
+        <Field label="Claim window length (secs, starts at settlement)" value={claimSecs} onChange={setClaimSecs} />
         <Field label="Load (bps, e.g. 12000 = 1.2x EV)" value={loadBps} onChange={setLoadBps} />
         <Field label="CPI buckets (bps, comma-separated)" value={buckets} onChange={setBuckets} />
         <Field label="Probabilities (bps, must sum to 10000)" value={probs} onChange={setProbs} />
@@ -125,7 +129,7 @@ function PostSettlementForm() {
         onClick={() =>
           write.writeContract({
             address: contractAddresses.insurance,
-            abi: cpiInsuranceAbi,
+            abi: inflationHedgeAbi,
             functionName: "postSettlement",
             args: [BigInt(periodId), BigInt(cpiBps)],
             chainId: activeChain.id,

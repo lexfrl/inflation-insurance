@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {TestBase} from "./helpers/TestBase.t.sol";
-import {CpiInsurance} from "../src/CpiInsurance.sol";
+import {InflationHedge} from "../src/InflationHedge.sol";
 
-contract CpiInsuranceFuzzTest is TestBase {
+contract InflationHedgeFuzzTest is TestBase {
     /// Histogram with 1bp of mass at the cap and the rest at 0: keeps premium
     /// a tiny, predictable fraction of maxPayout across the whole strike/cap
     /// range, so quote() never hits its own "unpriceable" guard and we can
@@ -21,8 +21,8 @@ contract CpiInsuranceFuzzTest is TestBase {
     function _createLowPremiumPeriod(uint256 capBps) internal returns (uint256 periodId) {
         (uint256[] memory buckets, uint256[] memory probs) = _lowPremiumHistogram();
         buckets[1] = capBps;
-        CpiInsurance.CreatePeriodParams memory p =
-            _customParams(capBps, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, block.timestamp + 5 days);
+        InflationHedge.CreatePeriodParams memory p =
+            _customParams(capBps, LOAD, buckets, probs, block.timestamp + 1 days, block.timestamp + 2 days, CLAIM_WINDOW);
         periodId = insurance.createPeriod(p);
     }
 
@@ -63,10 +63,10 @@ contract CpiInsuranceFuzzTest is TestBase {
         uint256 policyA = insurance.buyPolicy(periodA, notional, STRIKE);
         vm.warp(insurance.getPeriod(periodA).periodEnd + 1);
         insurance.postSettlement(periodA, cpiA);
-        uint256 balBeforeA = usdc.balanceOf(buyer1);
+        uint256 balBeforeA = usdt.balanceOf(buyer1);
         vm.prank(buyer1);
         insurance.claim(policyA);
-        uint256 payoutA = usdc.balanceOf(buyer1) - balBeforeA;
+        uint256 payoutA = usdt.balanceOf(buyer1) - balBeforeA;
 
         // Period B settles at cpiB, otherwise identical.
         uint256 periodB = _createLowPremiumPeriod(CAP);
@@ -76,10 +76,10 @@ contract CpiInsuranceFuzzTest is TestBase {
         uint256 policyB = insurance.buyPolicy(periodB, notional, STRIKE);
         vm.warp(insurance.getPeriod(periodB).periodEnd + 1);
         insurance.postSettlement(periodB, cpiB);
-        uint256 balBeforeB = usdc.balanceOf(buyer2);
+        uint256 balBeforeB = usdt.balanceOf(buyer2);
         vm.prank(buyer2);
         insurance.claim(policyB);
-        uint256 payoutB = usdc.balanceOf(buyer2) - balBeforeB;
+        uint256 payoutB = usdt.balanceOf(buyer2) - balBeforeB;
 
         assertLe(payoutA, payoutB, "payout must be monotonic in settled CPI");
     }
@@ -104,7 +104,7 @@ contract CpiInsuranceFuzzTest is TestBase {
 
             vm.prank(buyers[i]);
             try insurance.buyPolicy(periodId, notional, strikeBps) returns (uint256) {
-                CpiInsurance.Period memory period = insurance.getPeriod(periodId);
+                InflationHedge.Period memory period = insurance.getPeriod(periodId);
                 assertLe(
                     period.totalMaxLiability,
                     period.totalCollateral + period.totalPremiums,

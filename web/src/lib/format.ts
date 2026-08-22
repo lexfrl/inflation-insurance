@@ -1,6 +1,6 @@
-// USDC has 6 decimals; strike/cap/CPI are all basis points (1/100 of 1%).
+// USDT has 6 decimals; strike/cap/CPI are all basis points (1/100 of 1%).
 
-export function formatUsdc(value: bigint | undefined, fractionDigits = 2): string {
+export function formatUsdt(value: bigint | undefined, fractionDigits = 2): string {
   if (value === undefined) return "-";
   const whole = value / 1_000_000n;
   const frac = value % 1_000_000n;
@@ -11,7 +11,7 @@ export function formatUsdc(value: bigint | undefined, fractionDigits = 2): strin
   });
 }
 
-export function parseUsdc(value: string): bigint {
+export function parseUsdt(value: string): bigint {
   const num = Number(value);
   if (!Number.isFinite(num) || num < 0) return 0n;
   return BigInt(Math.round(num * 1_000_000));

@@ -3,15 +3,15 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {CpiInsurance} from "../../src/CpiInsurance.sol";
-import {MockUSDC} from "../../src/MockUSDC.sol";
+import {InflationHedge} from "../../src/InflationHedge.sol";
+import {MockUSDT} from "../../src/MockUSDT.sol";
 
-/// @notice Shared fixtures for CpiInsurance tests: deployment, funded actors,
-///         and a default histogram matching the founder's worked example
-///         (strike=3%, cap=8%, $1000 notional -> $50 max payout).
+/// @notice Shared fixtures for InflationHedge tests: deployment, funded
+///         actors, and a default histogram matching the founder's worked
+///         example (strike=3%, cap=8%, $1000 notional -> $50 max payout).
 abstract contract TestBase is Test {
-    CpiInsurance internal insurance;
-    MockUSDC internal usdc;
+    InflationHedge internal insurance;
+    MockUSDT internal usdt;
 
     address internal lp1 = makeAddr("lp1");
     address internal lp2 = makeAddr("lp2");
@@ -21,10 +21,11 @@ abstract contract TestBase is Test {
     uint256 internal constant STRIKE = 300; // 3.00%
     uint256 internal constant CAP = 800; // 8.00%
     uint256 internal constant LOAD = 12_000; // 1.2x raw EV
+    uint256 internal constant CLAIM_WINDOW = 3 days;
 
     function setUp() public virtual {
-        usdc = new MockUSDC();
-        insurance = new CpiInsurance(IERC20(address(usdc)));
+        usdt = new MockUSDT();
+        insurance = new InflationHedge(IERC20(address(usdt)));
 
         _fund(lp1, 1_000_000e6);
         _fund(lp2, 1_000_000e6);
@@ -33,9 +34,9 @@ abstract contract TestBase is Test {
     }
 
     function _fund(address who, uint256 amount) internal {
-        usdc.mint(who, amount);
+        usdt.mint(who, amount);
         vm.prank(who);
-        usdc.approve(address(insurance), type(uint256).max);
+        usdt.approve(address(insurance), type(uint256).max);
     }
 
     /// @dev Histogram: {2%, 4%, 6%, 8%} with probabilities {40%, 30%, 20%, 10%}.
@@ -55,18 +56,18 @@ abstract contract TestBase is Test {
         probs[3] = 1000;
     }
 
-    function _defaultParams(uint256 saleEnd, uint256 periodEnd, uint256 claimDeadline)
+    function _defaultParams(uint256 saleEnd, uint256 periodEnd, uint256 claimWindowSecs)
         internal
         pure
-        returns (CpiInsurance.CreatePeriodParams memory p)
+        returns (InflationHedge.CreatePeriodParams memory p)
     {
         (uint256[] memory buckets, uint256[] memory probs) = _defaultHistogram();
-        p = CpiInsurance.CreatePeriodParams({
+        p = InflationHedge.CreatePeriodParams({
             label: "Argentina CPI, Sep 2026",
             capBps: CAP,
             saleEnd: saleEnd,
             periodEnd: periodEnd,
-            claimDeadline: claimDeadline,
+            claimWindowSecs: claimWindowSecs,
             loadBps: LOAD,
             cpiBucketsBps: buckets,
             probBps: probs
@@ -74,10 +75,11 @@ abstract contract TestBase is Test {
     }
 
     /// @dev Creates a period with sale closing in 1 day, CPI period ending in
-    ///      2 days, and a 3-day claim window after that.
+    ///      2 days, and a 3-day claim window that starts once settlement
+    ///      actually posts.
     function _createDefaultPeriod() internal returns (uint256 periodId) {
-        CpiInsurance.CreatePeriodParams memory p =
-            _defaultParams(block.timestamp + 1 days, block.timestamp + 2 days, block.timestamp + 5 days);
+        InflationHedge.CreatePeriodParams memory p =
+            _defaultParams(block.timestamp + 1 days, block.timestamp + 2 days, CLAIM_WINDOW);
         periodId = insurance.createPeriod(p);
     }
 
@@ -88,14 +90,14 @@ abstract contract TestBase is Test {
         uint256[] memory probs,
         uint256 saleEnd,
         uint256 periodEnd,
-        uint256 claimDeadline
-    ) internal pure returns (CpiInsurance.CreatePeriodParams memory p) {
-        p = CpiInsurance.CreatePeriodParams({
+        uint256 claimWindowSecs
+    ) internal pure returns (InflationHedge.CreatePeriodParams memory p) {
+        p = InflationHedge.CreatePeriodParams({
             label: "custom",
             capBps: capBps,
             saleEnd: saleEnd,
             periodEnd: periodEnd,
-            claimDeadline: claimDeadline,
+            claimWindowSecs: claimWindowSecs,
             loadBps: loadBps,
             cpiBucketsBps: buckets,
             probBps: probs

@@ -69,7 +69,7 @@ jobs:
           # real values come from Vercel's own env var config at deploy time.
           NEXT_PUBLIC_CHAIN_ID: "84532"
           NEXT_PUBLIC_RPC_URL: "https://sepolia.base.org"
-          NEXT_PUBLIC_USDC_ADDRESS: "0x0000000000000000000000000000000000dEaD"
+          NEXT_PUBLIC_USDT_ADDRESS: "0x0000000000000000000000000000000000dEaD"
           NEXT_PUBLIC_INSURANCE_ADDRESS: "0x0000000000000000000000000000000000dEaD"
           # RainbowKit throws at build/prerender time on an empty projectId
           # -- must be non-empty even as a placeholder. Get a real free one

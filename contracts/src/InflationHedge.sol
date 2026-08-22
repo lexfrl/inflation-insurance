@@ -6,10 +6,12 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/// @title CpiInsurance
-/// @notice Parametric inflation-protection product: LPs fund a per-period pool,
-///         buyers pay a premium for a policy that pays out based on how far the
-///         settled CPI print exceeds their chosen strike (capped per period).
+/// @title InflationHedge
+/// @notice IPC Shield core contract. Parametric inflation-protection product:
+///         LPs fund a per-period pool, buyers pay a premium for a policy that
+///         pays out based on how far the settled CPI print exceeds their
+///         chosen strike (capped per period). Settled and collateralized in
+///         USDT.
 ///
 ///         Differentiation from a binary prediction market (e.g. Polymarket):
 ///         payout scales continuously with the size of the inflation shock,
@@ -18,10 +20,11 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 ///         (`cpiBucketsBps` / `probBps`) rather than pricing one YES/NO event.
 ///
 /// @dev V1 trust model: CPI settlement is posted by a single trusted owner
-///      address (`postSettlement`). No decentralized oracle. See README for
-///      the V2 roadmap (Chainlink Functions, factory-per-pool, market-derived
-///      pricing, ERC721 policies).
-contract CpiInsurance is Ownable, ReentrancyGuard {
+///      address (`postSettlement`). No decentralized oracle. See
+///      `IInflationOracle` for the V2 seam this would plug into (INDEC ->
+///      resolver -> this contract), and the README for the full roadmap
+///      (factory-per-pool, market-derived pricing, ERC721 policies).
+contract InflationHedge is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant BPS_DENOM = 10_000;
@@ -31,7 +34,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         uint256 capBps;
         uint256 saleEnd;
         uint256 periodEnd;
-        uint256 claimDeadline;
+        uint256 claimWindowSecs; // claim window duration, starts counting at settlement
         uint256 loadBps; // e.g. 12_000 = premium is 1.2x the raw expected value
         uint256[] cpiBucketsBps; // discrete CPI outcomes this period's histogram covers
         uint256[] probBps; // matching probabilities, must sum to BPS_DENOM
@@ -42,7 +45,8 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         uint256 capBps;
         uint256 saleEnd;
         uint256 periodEnd;
-        uint256 claimDeadline;
+        uint256 claimWindowSecs;
+        uint256 claimDeadline; // 0 until settled; set to settledAt + claimWindowSecs
         uint256 loadBps;
         uint256[] cpiBucketsBps;
         uint256[] probBps;
@@ -65,7 +69,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         bool claimed;
     }
 
-    IERC20 public immutable usdc;
+    IERC20 public immutable usdt;
 
     mapping(uint256 => Period) private _periods;
     uint256 public periodCount;
@@ -74,13 +78,19 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
     uint256 public policyCount;
     mapping(address => uint256[]) private _policiesOf;
 
-    // periodId => lp => shares (1:1 with USDC deposited, pre-settlement)
+    // periodId => lp => shares (1:1 with USDT deposited, pre-settlement)
     mapping(uint256 => mapping(address => uint256)) public lpShares;
     // periodId => lp => already withdrew (one withdrawal per LP per period)
     mapping(uint256 => mapping(address => bool)) public lpWithdrawn;
 
     event PeriodCreated(
-        uint256 indexed periodId, string label, uint256 capBps, uint256 saleEnd, uint256 periodEnd, uint256 claimDeadline, uint256 loadBps
+        uint256 indexed periodId,
+        string label,
+        uint256 capBps,
+        uint256 saleEnd,
+        uint256 periodEnd,
+        uint256 claimWindowSecs,
+        uint256 loadBps
     );
     event Deposited(uint256 indexed periodId, address indexed lp, uint256 amount, uint256 shares);
     event PolicyBought(
@@ -92,12 +102,12 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         uint256 premium,
         uint256 maxPayout
     );
-    event SettlementPosted(uint256 indexed periodId, uint256 cpiBps);
+    event SettlementPosted(uint256 indexed periodId, uint256 cpiBps, uint256 claimDeadline);
     event Claimed(uint256 indexed policyId, address indexed buyer, uint256 payout);
     event Withdrawn(uint256 indexed periodId, address indexed lp, uint256 amount);
 
-    constructor(IERC20 usdc_) Ownable(msg.sender) {
-        usdc = usdc_;
+    constructor(IERC20 usdt_) Ownable(msg.sender) {
+        usdt = usdt_;
     }
 
     // ---------------------------------------------------------------------
@@ -108,7 +118,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         require(p.capBps > 0 && p.capBps <= BPS_DENOM, "bad cap");
         require(p.saleEnd > block.timestamp, "saleEnd in past");
         require(p.periodEnd >= p.saleEnd, "periodEnd < saleEnd");
-        require(p.claimDeadline > p.periodEnd, "claimDeadline <= periodEnd");
+        require(p.claimWindowSecs > 0, "claim window must be > 0");
         require(p.loadBps >= BPS_DENOM, "load must be >= 1x");
         require(p.cpiBucketsBps.length > 0, "empty histogram");
         require(p.cpiBucketsBps.length == p.probBps.length, "length mismatch");
@@ -125,14 +135,26 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         period.capBps = p.capBps;
         period.saleEnd = p.saleEnd;
         period.periodEnd = p.periodEnd;
-        period.claimDeadline = p.claimDeadline;
+        period.claimWindowSecs = p.claimWindowSecs;
         period.loadBps = p.loadBps;
         period.cpiBucketsBps = p.cpiBucketsBps;
         period.probBps = p.probBps;
 
-        emit PeriodCreated(periodId, p.label, p.capBps, p.saleEnd, p.periodEnd, p.claimDeadline, p.loadBps);
+        emit PeriodCreated(periodId, p.label, p.capBps, p.saleEnd, p.periodEnd, p.claimWindowSecs, p.loadBps);
     }
 
+    /// @notice Posts the settled CPI print and opens the claim window.
+    /// @dev The claim window is derived from *this call's* timestamp, not an
+    ///      independent deadline fixed at period creation: `claimDeadline =
+    ///      block.timestamp + claimWindowSecs`. This is deliberate -- an
+    ///      earlier version stored `claimDeadline` as an absolute timestamp
+    ///      set at `createPeriod` time, so a late settlement (posted after
+    ///      that fixed deadline had already passed) could permanently lock
+    ///      buyers out of `claim()` while `withdraw()` was immediately
+    ///      callable, letting LPs walk off with premiums that should have
+    ///      paid out. Deriving the deadline here means claim() is always
+    ///      reachable for `claimWindowSecs` after settlement actually posts,
+    ///      no matter how late that is.
     function postSettlement(uint256 periodId, uint256 cpiBps) external onlyOwner {
         Period storage period = _periods[periodId];
         require(period.saleEnd != 0, "no such period");
@@ -141,8 +163,9 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
 
         period.settlementCpiBps = cpiBps;
         period.settled = true;
+        period.claimDeadline = block.timestamp + period.claimWindowSecs;
 
-        emit SettlementPosted(periodId, cpiBps);
+        emit SettlementPosted(periodId, cpiBps, period.claimDeadline);
     }
 
     // ---------------------------------------------------------------------
@@ -153,12 +176,20 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         Period storage period = _periods[periodId];
         require(period.saleEnd != 0, "no such period");
         require(block.timestamp < period.saleEnd, "sale closed");
+        // Once the first policy has been sold, premiums are already sitting
+        // in the pool. Shares are still minted 1:1, so a deposit after that
+        // point would buy a pro-rata cut of gains it didn't underwrite --
+        // free-riding on earlier LPs. Closing deposits here keeps every
+        // depositor's shares priced against the same pool state (deposits
+        // only, no premiums yet), which is what makes 1:1 minting fair.
+        require(period.totalMaxLiability == 0, "underwriting already started");
         require(amount > 0, "zero amount");
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
+        usdt.safeTransferFrom(msg.sender, address(this), amount);
 
-        // Shares are minted 1:1 with deposited USDC. Pre-settlement the pool
-        // never loses principal, so a constant share price is safe.
+        // Shares are minted 1:1 with deposited USDT. Pre-underwriting the
+        // pool never loses principal and holds no premiums yet, so a
+        // constant share price is safe.
         lpShares[periodId][msg.sender] += amount;
         period.totalShares += amount;
         period.totalCollateral += amount;
@@ -187,7 +218,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         uint256 remaining = period.totalCollateral + period.totalPremiums - period.totalClaimed;
         uint256 amount = (remaining * shares) / period.totalShares;
 
-        usdc.safeTransfer(msg.sender, amount);
+        usdt.safeTransfer(msg.sender, amount);
 
         emit Withdrawn(periodId, msg.sender, amount);
     }
@@ -247,7 +278,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
             "insufficient pool backing"
         );
 
-        usdc.safeTransferFrom(msg.sender, address(this), premium);
+        usdt.safeTransferFrom(msg.sender, address(this), premium);
 
         period.totalPremiums += premium;
         period.totalMaxLiability += maxPayout;
@@ -284,7 +315,7 @@ contract CpiInsurance is Ownable, ReentrancyGuard {
         period.totalClaimed += payout;
 
         if (payout > 0) {
-            usdc.safeTransfer(msg.sender, payout);
+            usdt.safeTransfer(msg.sender, payout);
         }
 
         emit Claimed(policyId, msg.sender, payout);

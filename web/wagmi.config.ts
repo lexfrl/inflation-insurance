@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     foundry({
       project: "../contracts",
-      include: ["CpiInsurance.sol/**", "MockUSDC.sol/**"],
+      include: ["InflationHedge.sol/**", "MockUSDT.sol/**"],
     }),
   ],
 });
