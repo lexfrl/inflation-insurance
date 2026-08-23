@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {InflationHedge} from "../../src/InflationHedge.sol";
 import {MockUSDT} from "../../src/MockUSDT.sol";
+import {MockYieldVault} from "../../src/MockYieldVault.sol";
 
 /// @notice Bounds a random call sequence (deposit / buyPolicy / settle / claim
 ///         / withdraw) against a single InflationHedge period to valid-ish
@@ -14,6 +15,7 @@ import {MockUSDT} from "../../src/MockUSDT.sol";
 contract Handler is Test {
     InflationHedge public insurance;
     MockUSDT public usdt;
+    MockYieldVault public yieldVault;
     uint256 public periodId;
     address public owner;
 
@@ -32,10 +34,13 @@ contract Handler is Test {
     uint256 public ghost_successfulDeposits;
     uint256 public ghost_successfulBuys;
     uint256 public ghost_successfulSettles;
+    uint256 public ghost_successfulInvests;
+    uint256 public ghost_successfulDivests;
 
-    constructor(InflationHedge _insurance, MockUSDT _usdt, uint256 _periodId) {
+    constructor(InflationHedge _insurance, MockUSDT _usdt, MockYieldVault _yieldVault, uint256 _periodId) {
         insurance = _insurance;
         usdt = _usdt;
+        yieldVault = _yieldVault;
         periodId = _periodId;
         owner = _insurance.owner();
 
@@ -123,9 +128,59 @@ contract Handler is Test {
         } catch {}
     }
 
+    /// Deploys the period's unsold capacity into the yield vault, warping to
+    /// `saleEnd` to open the window. The `totalCollateral == 0` early return
+    /// has to come BEFORE that warp, and is the most load-bearing guard in
+    /// this handler: warping to `saleEnd` permanently closes `deposit` and
+    /// `buyPolicy`, so a fuzzer that hit this on call #1 of a 50-call run
+    /// would lose the entire deposit/buy path for the rest of the run. With
+    /// `fail_on_revert = false` that coverage loss is completely silent --
+    /// the suite stays green while testing almost nothing.
+    function investIdle(uint256) external {
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
+        if (period.totalCollateral == 0) return;
+        if (period.settled || period.vaultPrincipal > 0) return;
+
+        if (block.timestamp < period.saleEnd) {
+            vm.warp(period.saleEnd);
+        }
+
+        try insurance.investIdle(periodId) returns (uint256, uint256) {
+            ghost_successfulInvests++;
+        } catch {}
+    }
+
+    /// Partial redemptions are the realistic case against a curated vault, so
+    /// the share count is fuzzed across the whole open position rather than
+    /// always draining it in one go.
+    function divest(uint256 sharesSeed) external {
+        uint256 held = insurance.getPeriod(periodId).vaultShares;
+        if (held == 0) return;
+
+        uint256 shares = bound(sharesSeed, 1, held);
+        try insurance.divest(periodId, shares) returns (uint256) {
+            ghost_successfulDivests++;
+        } catch {}
+    }
+
+    function accrueYield(uint256 yieldSeed) external {
+        yieldVault.accrueYield(bound(yieldSeed, 0, 100_000e6));
+    }
+
+    function simulateLoss(uint256 lossSeed) external {
+        uint256 held = usdt.balanceOf(address(yieldVault));
+        if (held == 0) return;
+        yieldVault.simulateLoss(bound(lossSeed, 0, held));
+    }
+
     function withdraw(uint256 actorSeed) external {
         address who = _actor(actorSeed);
         InflationHedge.Period memory period = insurance.getPeriod(periodId);
+        // Mirrors the contract's "vault not divested" guard, in the same
+        // spirit as the deposit guard above. Deliberately does NOT auto-call
+        // `divest` first: doing so would paper over exactly the ordering bug
+        // the invariants exist to catch.
+        if (period.vaultShares > 0) return;
         // withdraw requires block.timestamp > claimDeadline (strictly), so
         // land one second past it, not exactly on it. Gated on `settled`,
         // not just comparing against claimDeadline directly: claimDeadline

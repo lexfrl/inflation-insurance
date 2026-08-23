@@ -115,4 +115,69 @@ contract InflationHedgeFuzzTest is TestBase {
             }
         }
     }
+
+    /// However much is deposited, sold and deployed, the USDT physically left
+    /// in the contract must still cover every buyer's outstanding maximum
+    /// payout. This is the property the whole yield design rests on: the
+    /// vault can never be in the claim path.
+    function testFuzz_InvestedIdleNeverBreaksClaimLiquidity(
+        uint256 depositSeed,
+        uint256 notionalSeed,
+        uint256 investBpsSeed
+    ) public {
+        _enableVault(bound(investBpsSeed, 0, 10_000));
+
+        uint256 periodId = _createLowPremiumPeriod(CAP);
+
+        uint256 depositAmt = bound(depositSeed, 1e6, 10_000e6);
+        vm.prank(lp1);
+        insurance.deposit(periodId, depositAmt);
+
+        vm.prank(buyer1);
+        try insurance.buyPolicy(periodId, bound(notionalSeed, 1e6, 1_000_000e6), 0) returns (uint256) {}
+        catch {
+            // Insufficient backing for the fuzzed notional -- the period just
+            // stays fully unsold, which is still a valid state to invest in.
+        }
+
+        vm.warp(insurance.getPeriod(periodId).saleEnd);
+        try insurance.investIdle(periodId) returns (uint256, uint256) {}
+        catch {
+            // investBps of 0 leaves nothing to deploy; nothing to assert.
+        }
+
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
+        assertGe(
+            usdt.balanceOf(address(insurance)),
+            period.totalMaxLiability,
+            "liquid USDT must always cover outstanding buyer liability"
+        );
+        assertLe(
+            period.vaultPrincipal,
+            period.totalCollateral + period.totalPremiums - period.totalMaxLiability,
+            "never deploy more than the unsold capacity"
+        );
+    }
+
+    /// `withdraw`'s new `remaining` mixes vault proceeds and principal, so it
+    /// must not underflow for any vault outcome -- including a total loss.
+    function testFuzz_WithdrawSurvivesAnyVaultOutcome(uint256 pnlSeed, uint256 lossSeed) public {
+        _enableVault(10_000);
+        (uint256 periodId,) = _investedPeriod();
+
+        uint256 principal = insurance.getPeriod(periodId).vaultPrincipal;
+        if (lossSeed % 2 == 0) {
+            yieldVault.accrueYield(bound(pnlSeed, 0, 10_000e6));
+        } else {
+            yieldVault.simulateLoss(bound(pnlSeed, 0, principal));
+        }
+
+        vm.warp(insurance.getPeriod(periodId).periodEnd);
+        insurance.postSettlement(periodId, 200); // below strike: nothing claimed
+        insurance.divest(periodId, insurance.getPeriod(periodId).vaultShares);
+        vm.warp(insurance.getPeriod(periodId).claimDeadline + 1);
+
+        vm.prank(lp1);
+        insurance.withdraw(periodId);
+    }
 }

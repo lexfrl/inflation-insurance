@@ -9,6 +9,7 @@ set -euo pipefail
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 PRIVATE_KEY="${PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}" # anvil default account 0
 SETTLE_CPI_BPS="${SETTLE_CPI_BPS:-500}" # 5.00% for the demo narrative
+SIMULATED_YIELD="${SIMULATED_YIELD:-25000000}" # 25.00 USDT of mock vault yield
 
 cd "$(dirname "$0")/.."
 
@@ -33,13 +34,28 @@ echo "$OUT1"
 
 USDT_ADDRESS=$(echo "$OUT1" | awk '/USDT_ADDRESS/ {print $2}')
 INSURANCE_ADDRESS=$(echo "$OUT1" | awk '/INSURANCE_ADDRESS/ {print $2}')
+VAULT_ADDRESS=$(echo "$OUT1" | awk '/VAULT_ADDRESS/ {print $2}')
 PERIOD_ID=$(echo "$OUT1" | awk '/PERIOD_ID/ {print $2}')
 POLICY_ID=$(echo "$OUT1" | awk '/POLICY_ID/ {print $2}')
+SALE_END_UNIX=$(echo "$OUT1" | awk '/SALE_END_UNIX/ {print $2}')
 PERIOD_END_UNIX=$(echo "$OUT1" | awk '/PERIOD_END_UNIX/ {print $2}')
 
 echo "MockUSDT:        $USDT_ADDRESS"
 echo "InflationHedge:  $INSURANCE_ADDRESS"
+echo "MockYieldVault:  $VAULT_ADDRESS"
 echo "Period / Policy ids: $PERIOD_ID / $POLICY_ID"
+
+NOW=$(date +%s)
+WAIT0=$(( SALE_END_UNIX - NOW + 2 ))
+if [ "$WAIT0" -gt 0 ]; then
+  echo "Waiting ${WAIT0}s for the sale window to close..."
+  sleep "$WAIT0"
+fi
+mine_if_local
+
+echo "== Phase 1b: deploy the unsold capacity into the yield vault =="
+OUT1B=$(run script/Demo.s.sol --sig "investPhase(address,uint256,uint256)" "$INSURANCE_ADDRESS" "$PERIOD_ID" "$SIMULATED_YIELD")
+echo "$OUT1B"
 
 NOW=$(date +%s)
 WAIT1=$(( PERIOD_END_UNIX - NOW + 2 ))
@@ -56,6 +72,14 @@ echo "$OUT2"
 # claimDeadline is derived at settlement time (settledAt + claimWindowSecs),
 # not known until phase 2 actually runs -- see Demo.s.sol.
 CLAIM_DEADLINE_UNIX=$(echo "$OUT2" | awk '/CLAIM_DEADLINE_UNIX/ {print $2}')
+
+# Unwinding the vault is deliberately its own step, never part of settlement:
+# a vault that cannot redeem right now must never block the claim window from
+# opening. It is permissionless, so anyone -- not just the operator -- can run
+# this before LPs withdraw.
+echo "== Phase 2b: unwind the vault position back into the pool =="
+OUT2B=$(run script/Demo.s.sol --sig "divestPhase(address,uint256)" "$INSURANCE_ADDRESS" "$PERIOD_ID")
+echo "$OUT2B"
 
 NOW=$(date +%s)
 WAIT2=$(( CLAIM_DEADLINE_UNIX - NOW + 2 ))

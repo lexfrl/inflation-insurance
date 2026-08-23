@@ -427,6 +427,10 @@ function QuickFacts({ period }: { period: Period }) {
       "Settlement",
       period.settled ? `${formatBps(period.settlementCpiBps)} posted` : "Awaiting the official figure",
     ],
+    // The pool earns yield on capital nobody bought cover against. Buyers
+    // reasonably want to know their payout is not what is at risk there, so
+    // the guarantee sits next to the other facts rather than buried in docs.
+    ["Your payout is held", "Liquid in the contract, always"],
   ];
 
   return (
