@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { maxUint256 } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
@@ -38,7 +38,21 @@ export default function LpPage() {
     query: { refetchInterval: 4000 },
   });
 
-  const [selected, setSelected] = useState(0);
+  // The contract closes an individual period's LP door for good the moment
+  // its first policy sells (`totalMaxLiability == 0` guard in `deposit()`)
+  // -- so a period can be "open" (sale still running, buyers still buying)
+  // while being permanently closed to new LPs. Defaulting to index 0
+  // landed depositors on exactly that period once it had a policy sold,
+  // with no signal beyond a plain revert. `autoIndex` picks the first
+  // period still open to LPs instead; `manualSelection` (null until a chip
+  // is clicked) lets a user override that once periods are in.
+  const [manualSelection, setManualSelection] = useState<number | null>(null);
+  const autoIndex = useMemo(() => {
+    if (!periods || periods.length === 0) return 0;
+    const openIndex = periods.findIndex((p) => (p as Period).totalMaxLiability === 0n);
+    return openIndex >= 0 ? openIndex : 0;
+  }, [periods]);
+  const selected = manualSelection ?? autoIndex;
   const period = periods?.[selected] as Period | undefined;
 
   return (
@@ -75,7 +89,7 @@ export default function LpPage() {
         <>
           <div className="flex flex-wrap gap-2">
             {periods.map((p, i) => (
-              <Chip key={i} active={selected === i} onClick={() => setSelected(i)}>
+              <Chip key={i} active={selected === i} onClick={() => setManualSelection(i)}>
                 {(p as Period).label}
               </Chip>
             ))}
@@ -208,6 +222,15 @@ function PoolPanel({
               <span className="text-sm text-content-500">Connect wallet</span>
             ) : !saleOpen ? (
               <span className="text-sm text-content-500">Deposits closed</span>
+            ) : period.totalMaxLiability > 0n ? (
+              // The period itself can still be "open" (sale running, buyers
+              // still buying) while permanently closed to new LP deposits --
+              // the contract's `deposit()` guard trips the moment the first
+              // policy in this period sells. Surfacing that here instead of
+              // just letting the button submit a doomed, gas-burning revert.
+              <span className="text-sm text-content-500">
+                Deposits closed &mdash; a policy already sold in this period
+              </span>
             ) : needsApproval ? (
               <Button
                 disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
