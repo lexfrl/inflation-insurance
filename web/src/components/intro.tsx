@@ -9,7 +9,9 @@
 export function Intro() {
   return (
     <section className="flex flex-col gap-10">
-      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+      {/* items-start, not items-center: the copy column is shorter than the
+          example card, and centring it left a visible hole between them. */}
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div>
           <h2 className="text-2xl font-semibold leading-tight tracking-tight text-content-100">
             Insurance, not a bet

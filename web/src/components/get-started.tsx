@@ -8,8 +8,12 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
    no email, no password. So the landing's primary call to action is the
    connect flow itself, and once a wallet is attached it turns into the way
    into the product rather than sitting there offering to connect again. */
-export function GetStarted() {
+/* `onGradient` switches the supporting text to a white ramp. The neutral
+   content colours are tuned for the page background and all but vanish on the
+   blue hero panel, which is a contrast failure, not a style preference. */
+export function GetStarted({ onGradient = false }: { onGradient?: boolean }) {
   const { isConnected } = useAccount();
+  const muted = onGradient ? "text-white/75" : "text-content-500";
 
   if (isConnected) {
     return (
@@ -20,7 +24,7 @@ export function GetStarted() {
         >
           Go to your profile
         </Link>
-        <span className="text-sm text-content-500">Your wallet is connected.</span>
+        <span className={`text-sm ${muted}`}>Your wallet is connected.</span>
       </div>
     );
   }
@@ -28,9 +32,7 @@ export function GetStarted() {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <ConnectButton label="Connect wallet to start" showBalance={false} />
-      <span className="text-sm text-content-500">
-        No sign-up. Your wallet is your account.
-      </span>
+      <span className={`text-sm ${muted}`}>No sign-up. Your wallet is your account.</span>
     </div>
   );
 }

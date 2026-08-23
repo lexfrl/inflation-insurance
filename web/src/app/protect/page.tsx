@@ -384,12 +384,12 @@ function QuickFacts({ period }: { period: Period }) {
         {facts.map(([k, v], i) => (
           <div
             key={k}
-            className={`flex items-baseline justify-between gap-4 py-2.5 text-sm ${
+            className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 text-sm ${
               i > 0 ? "border-t border-surface-700" : ""
             }`}
           >
-            <dt className="text-content-500">{k}</dt>
-            <dd className="text-right font-mono text-content-100 tnum">{v}</dd>
+            <dt className="shrink-0 text-content-500">{k}</dt>
+            <dd className="ml-auto text-right font-mono text-content-100 tnum">{v}</dd>
           </div>
         ))}
       </dl>

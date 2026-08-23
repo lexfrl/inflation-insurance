@@ -30,26 +30,45 @@ export default function LandingPage() {
           difference lands in your wallet in USDT.
         </p>
         <div className="mt-8 flex justify-center">
-          <GetStarted />
+          <GetStarted onGradient />
         </div>
       </section>
 
       <Intro />
 
-      <section className="flex flex-col gap-6 border-t border-surface-700 pt-12">
+      {/* Copy beside the chart rather than stacked above it: stacked, the
+          paragraph column capped at 62ch left the whole right half of the
+          section empty. */}
+      <section className="grid items-start gap-8 border-t border-surface-700 pt-12 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-content-100">
             The payout grows with the damage
           </h2>
-          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-content-300">
+          <p className="mt-4 text-[15px] leading-relaxed text-content-300">
             A prediction market on inflation pays the same whether prices rise 3.01% or 12%. It
-            answers &ldquo;did it happen&rdquo;. That is a fine bet and a poor hedge, because your grocery
-            bill keeps climbing after the threshold and the payout does not.
+            answers &ldquo;did it happen&rdquo;. That is a fine bet and a poor hedge, because your
+            grocery bill keeps climbing after the threshold and the payout does not.
           </p>
-          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-content-300">
+          <p className="mt-4 text-[15px] leading-relaxed text-content-300">
             Here the payout tracks how far past your level inflation actually went, up to a
-            ceiling. Covering 1,000 above 3% pays nothing at 3%, 30 at 6%, and 50 from 8% up.
+            ceiling.
           </p>
+          <dl className="mt-6 border-t border-surface-700 text-sm">
+            {[
+              ["Inflation 3%", "0.00"],
+              ["Inflation 6%", "30.00"],
+              ["Inflation 8% and above", "50.00"],
+            ].map(([k, v]) => (
+              <div
+                key={k}
+                className="flex items-baseline justify-between gap-4 border-b border-surface-700 py-2.5"
+              >
+                <dt className="text-content-500">{k}</dt>
+                <dd className="font-mono text-content-100 tnum">{v} USDT</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-xs text-content-600">Covering 1,000 USDT above 3%.</p>
         </div>
 
         <div className="rounded-card border border-surface-700 bg-surface-850 p-5">

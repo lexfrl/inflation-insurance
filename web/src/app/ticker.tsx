@@ -54,7 +54,17 @@ export function Ticker() {
   ];
 
   return (
-    <div className="flex items-center gap-6 overflow-x-auto border-b border-surface-700 bg-surface-850 px-5 py-2.5 text-[13px]">
+    /* The strip scrolls rather than wraps, so the right edge is masked: a
+       hard clip mid-word reads as a broken layout, a fade reads as "there is
+       more this way". */
+    <div
+      className="flex items-center gap-6 overflow-x-auto border-b border-surface-700 bg-surface-850 px-5 py-2.5 text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{
+        maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
+        WebkitMaskImage:
+          "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
+      }}
+    >
       {items.map((item) => (
         <div key={item.label} className="flex shrink-0 items-baseline gap-2">
           <span className="text-content-500">{item.label}</span>
