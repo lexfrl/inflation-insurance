@@ -3,7 +3,7 @@
 Built at **Aleph Hackathon — Buenos Aires, August 2026**.
 
 **Repo:** https://github.com/lexfrl/inflation-insurance
-**Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; contract addresses below are placeholders until the Base Sepolia deploy runs, so on-chain reads will show empty until then)
+**Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; now pointed at the live Base Sepolia deployment below)
 
 Self-custodial inflation protection for LATAM, settled in USDT against
 official CPI data. You tell it how much monthly spending to protect and
@@ -357,9 +357,31 @@ script/Deploy.s.sol --broadcast` any time:
 | MockUSDT         | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
 | InflationHedge   | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
 
-**Base Sepolia** (chain id `84532`) — _pending a funded deployer key,
-see below._ The live Vercel frontend currently points at placeholder
-addresses (`0x0...dEaD`) on this chain until that deploy runs.
+**Base Sepolia** (chain id `84532`, rpc `https://sepolia.base.org`) — live,
+and what the Vercel frontend points at:
+
+| Contract        | Address |
+|------------------|---------|
+| MockUSDT         | `0xB3c611e5FcEc0BfB2Bd1038C5dd58B5F7E47909e` |
+| InflationHedge   | `0x40FCD288A719dA8ed591819fE2c3F8689a947A63` |
+
+Two periods are open for the live demo (owner = `0xF204c021f57A12EaBD8a022dDC4a654cf4403974`):
+
+| Period ID | Label | State |
+|---|---|---|
+| `0` | Argentina CPI, Sep 2026 | Seeded with 10,000 mUSDT of LP collateral — buyers can `buyPolicy` immediately (`quote(0, 1000e6, 300)` → premium 16.80 / maxPayout 50.00 USDT, matching the walkthrough above) |
+| `1` | Argentina CPI, Oct 2026 (LP demo) | Virgin, zero deposits — for demoing `deposit()` live, since a period's LP door closes for good after its first policy sale |
+
+Both periods: 14-day sale window, 21-day period, 7-day claim window after
+settlement, so they stay open through judging.
+
+Demo accounts (testnet-only, MockUSDT is open-mint so anyone can top up):
+
+| Role | Address | Funded with |
+|---|---|---|
+| Owner / admin | `0xF204c021f57A12EaBD8a022dDC4a654cf4403974` | ETH for gas; creates periods, posts settlements |
+| LP demo | `0xF9F4e16a1717cb7c958d7Cc4599eD143174eC453` | 0.01 ETH + 5,000 mUSDT, for the `deposit()` flow on period 1 |
+| Buyer demo | `0xdE223E8922A5C1bb03C02861AD6024EcB117Ba4e` | 0.01 ETH + 2,000 mUSDT, for the `buyPolicy()`/`claim()` flow on period 0 |
 
 ## CI/CD
 
@@ -387,7 +409,7 @@ addresses (`0x0...dEaD`) on this chain until that deploy runs.
 - [x] Derived claim window (settlement-time-based, not creation-time-fixed)
 - [x] Frontend (buyer / LP / admin flows) verified against local anvil
 - [x] GitHub repo, CI, and Vercel auto-deploy for the frontend
-- [ ] Base Sepolia deployment — blocked on a funded deployer key
+- [x] Base Sepolia deployment — live, with seeded demo accounts (see "Deployed addresses")
 - [ ] Real Tether WDK wallet integration (connect, balance, signed txs)
 - [ ] Payoff curve + pricing/EV breakdown in the buyer UI
 - [ ] Live demo video
