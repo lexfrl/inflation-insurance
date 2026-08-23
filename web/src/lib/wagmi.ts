@@ -1,7 +1,9 @@
-import { getDefaultWallets } from "@rainbow-me/rainbowkit";
-import { http, createConfig } from "wagmi";
+import type { Wallet } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import { base as baseWallet, metaMaskWallet, rainbowWallet, walletConnectWallet } from "@rainbow-me/rainbowkit/wallets";
+import { createConnector, http, createConfig } from "wagmi";
 import { baseSepolia, foundry } from "wagmi/chains";
-import { mock } from "wagmi/connectors";
+import { injected, mock } from "wagmi/connectors";
 
 // `foundry` (wagmi/viem's built-in chain-id-31337 definition) covers local
 // anvil. Base Sepolia is the real testnet target (see README). Both are
@@ -27,10 +29,40 @@ export const LOCAL_TEST_ACCOUNTS = [
   { label: "Buyer 2", address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65" },
 ] as const;
 
-const { connectors: walletConnectors } = getDefaultWallets({
-  appName: "Hedgy",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
-});
+// RainbowKit's own `metaMaskWallet` decides, once, at connector-list build
+// time, whether to wire up the real extension or fall back to a
+// WalletConnect session -- by synchronously checking `window.ethereum` right
+// then. If that check loses the race with MetaMask's content script (it did,
+// in practice: the "MetaMask" tile silently fell back to WalletConnect,
+// which then hung forever behind an invalid placeholder project ID -- see
+// NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID), every click looked identical --
+// "Opening MetaMask... Confirm connection in the extension" -- but never
+// actually asked the extension for anything.
+//
+// Keep RainbowKit's `metaMaskWallet` purely for its metadata (name, icon,
+// install/download instructions) and replace only `createConnector` with
+// wagmi's `injected({ target: "metaMask" })`, which re-resolves
+// `window.ethereum` live inside `connect()` on every click instead of once
+// at import time -- so it's correct regardless of injection timing, and
+// fails fast with a clear error if MetaMask genuinely isn't installed
+// instead of silently degrading to a broken WalletConnect session.
+function reliableMetaMaskWallet(params: Parameters<typeof metaMaskWallet>[0]): Wallet {
+  const base = metaMaskWallet(params);
+  return {
+    ...base,
+    installed: typeof window !== "undefined" ? "ethereum" in window : base.installed,
+    createConnector: (walletDetails) =>
+      createConnector((config) => ({
+        ...injected({ target: "metaMask" })(config),
+        ...walletDetails,
+      })),
+  };
+}
+
+const walletConnectors = connectorsForWallets(
+  [{ groupName: "Popular", wallets: [rainbowWallet, baseWallet, reliableMetaMaskWallet, walletConnectWallet] }],
+  { appName: "Hedgy", projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "" },
+);
 
 // Registered on every build, including a Base Sepolia / production one --
 // merely *registering* a connector does nothing by itself (nothing signs or
