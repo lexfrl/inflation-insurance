@@ -23,10 +23,18 @@ jobs:
         run: forge build --sizes
 
       - name: forge test (unit + fuzz + invariant)
+        env:
+          # Unset -> the Morpho fork tests report [SKIP] and CI is unaffected.
+          # Set (repo secret) -> they run against real Base mainnet state, and
+          # a genuine failure there should go red, hence no continue-on-error.
+          BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
         run: forge test -vvv --fuzz-runs 10000
 
       - name: forge coverage summary
-        run: forge coverage --report summary
+        # Fork tests are excluded: coverage instrumentation over a forked
+        # mainnet is slow, and the fork suite is an integration check rather
+        # than a coverage target.
+        run: forge coverage --report summary --no-match-contract MorphoFork
 
   frontend:
     name: Frontend (lint + build)

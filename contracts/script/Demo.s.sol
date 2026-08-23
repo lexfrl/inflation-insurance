@@ -3,8 +3,10 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {InflationHedge} from "../src/InflationHedge.sol";
 import {MockUSDT} from "../src/MockUSDT.sol";
+import {MockYieldVault} from "../src/MockYieldVault.sol";
 
 /// @notice Three-phase end-to-end lifecycle demo, driven by REAL elapsed
 ///         time rather than `vm.warp`.
@@ -30,7 +32,10 @@ import {MockUSDT} from "../src/MockUSDT.sol";
 ///   see script/demo.sh for the fully orchestrated local-anvil run.
 contract Demo is Script {
     uint256 internal constant SALE_WINDOW = 30 seconds;
-    uint256 internal constant PERIOD_WINDOW = 45 seconds; // must be > SALE_WINDOW
+    // Wide enough that the invest phase gets a comfortable window between
+    // `saleEnd` and `periodEnd` rather than a 15-second scramble: idle capital
+    // can only be deployed once underwriting has closed and before settlement.
+    uint256 internal constant PERIOD_WINDOW = 75 seconds; // must be > SALE_WINDOW
     uint256 internal constant CLAIM_WINDOW = 180 seconds; // claim window length after settlement
 
     /// Phase 1: deploy, create period, LP deposits, buyer buys a policy.
@@ -41,6 +46,10 @@ contract Demo is Script {
 
         MockUSDT usdt = new MockUSDT();
         InflationHedge insurance = new InflationHedge(IERC20(address(usdt)));
+        // Order matters -- see Deploy.s.sol. The vault is deployed last so the
+        // insurance contract keeps its deterministic anvil address.
+        MockYieldVault yieldVault = new MockYieldVault(IERC20(address(usdt)));
+        insurance.setVault(IERC4626(address(yieldVault)));
 
         usdt.mint(msg.sender, 1_000_000e6);
         usdt.approve(address(insurance), type(uint256).max);
@@ -76,11 +85,55 @@ contract Demo is Script {
 
         console.log("USDT_ADDRESS", address(usdt));
         console.log("INSURANCE_ADDRESS", address(insurance));
+        console.log("VAULT_ADDRESS", address(yieldVault));
         console.log("PERIOD_ID", periodId);
         console.log("POLICY_ID", policyId);
         console.log("QUOTE_PREMIUM", premium);
         console.log("QUOTE_MAX_PAYOUT", maxPayout);
+        console.log("SALE_END_UNIX", block.timestamp + SALE_WINDOW);
         console.log("PERIOD_END_UNIX", block.timestamp + PERIOD_WINDOW);
+    }
+
+    /// Phase 1b: run once real time has passed `saleEnd` but before
+    /// `periodEnd`. Deploys the period's unsold capacity into the yield vault
+    /// and simulates a period's worth of accrual so the demo has something
+    /// visible to show. `investIdle` is permissionless -- this is broadcast as
+    /// the deployer only because that is the key the script already holds.
+    function investPhase(address insuranceAddr, uint256 periodId, uint256 simulatedYield) external {
+        vm.startBroadcast();
+
+        InflationHedge insurance = InflationHedge(insuranceAddr);
+        (uint256 assets,) = insurance.investIdle(periodId);
+
+        MockYieldVault yieldVault = MockYieldVault(address(insurance.vault()));
+        if (simulatedYield > 0) {
+            yieldVault.accrueYield(simulatedYield);
+        }
+
+        uint256 value = insurance.vaultValue(periodId);
+
+        vm.stopBroadcast();
+
+        console.log("INVESTED_ASSETS", assets);
+        console.log("VAULT_VALUE_AFTER_YIELD", value);
+    }
+
+    /// Phase 2b: unwinds the vault position back into the pool. Separate from
+    /// settlement on purpose -- a vault that cannot redeem right now must
+    /// never be able to block the claim window from opening.
+    function divestPhase(address insuranceAddr, uint256 periodId) external {
+        vm.startBroadcast();
+
+        InflationHedge insurance = InflationHedge(insuranceAddr);
+        insurance.divest(periodId, insurance.getPeriod(periodId).vaultShares);
+
+        InflationHedge.Period memory period = insurance.getPeriod(periodId);
+
+        vm.stopBroadcast();
+
+        console.log("VAULT_PRINCIPAL", period.vaultPrincipal);
+        console.log("VAULT_PROCEEDS", period.vaultProceeds);
+        console.log("VAULT_YIELD", period.vaultProceeds - period.vaultPrincipal);
     }
 
     /// Phase 2: run once real time has passed `periodEnd`. Owner posts the

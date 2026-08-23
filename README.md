@@ -90,6 +90,7 @@ flowchart LR
     BUYER["Buyer<br/>insured person"]
     OWNER["Owner<br/>trusted operator"]
     POOL(["InflationHedge<br/>one Period pool<br/>collateral + premiums, in USDT"])
+    MORPHO(["Morpho vault<br/>ERC-4626 yield venue"])
 
     LP -- "deposit(usdt)<br/>shares minted 1:1, closes once<br/>underwriting starts" --> POOL
     POOL -- "withdraw()<br/>pro-rata share of what's left" --> LP
@@ -99,10 +100,15 @@ flowchart LR
 
     OWNER -- "postSettlement(cpiBps)<br/>once period ends, opens the<br/>claim window from that moment" --> POOL
 
+    POOL -- "investIdle()<br/>unsold capacity only" --> MORPHO
+    MORPHO -- "divest()<br/>permissionless, partial, retryable" --> POOL
+
     classDef role fill:#f6f6f6,stroke:#999,color:#111;
     classDef pool fill:#fdece2,stroke:#c74e1e,stroke-width:2px,color:#111;
+    classDef venue fill:#e8f0fe,stroke:#3b6cb5,stroke-width:2px,color:#111;
     class LP,BUYER,OWNER role;
     class POOL pool;
+    class MORPHO venue;
 ```
 
 - **LP** funds the pool and takes the other side of the risk: deposits USDT
@@ -172,6 +178,50 @@ fixed deadline had already passed — could permanently lock buyers out of
 with premiums that should have paid out. Deriving the deadline from the
 settlement call itself closes that gap: buyers always get a full
 `claimWindowSecs` to claim, no matter how late settlement posts.
+
+**Idle capital earns a base rate, and buyers' payouts never move:**
+
+```solidity
+vaultPrincipal <= totalCollateral + totalPremiums - totalMaxLiability
+```
+
+This exists because the pool had no answer for its first LP. On the worked
+example below — $1,000 of collateral backing one $1,000-notional policy — the
+LP's expected underwriting profit is `1.2 × EV − EV` = **$2.80, i.e. +0.28% for
+the whole period**. Underwriting only pays properly at high utilization
+(roughly +8% expected once ~29 such policies are sold), and a new pool never
+starts there. Measured against real Morpho on Base mainnet, the same idle
+capital earns **3.86% APY** (see the fork test below), which at low utilization
+dominates the premium income outright. That turns the LP pitch from "lock
+$1,000 for a month and earn 28 cents in expectation" into **base rate +
+underwriting premium** — a proposition that works from the very first deposit.
+
+The honest counterweight: yield is earned only on the *unsold* portion, so its
+contribution shrinks as utilization rises. This fixes cold start, not steady
+state.
+
+Two design choices keep the yield venue away from anything a buyer depends on:
+
+- **Only unsold capacity is ever deployed.** `totalMaxLiability` is subtracted
+  before anything is sent to the vault, so the USDT physically held by this
+  contract always covers every outstanding payout. A vault that is illiquid,
+  gated, or insolvent can only cost LPs — never a policyholder. This is pinned
+  by `invariant_liquidUsdtCoversOutstandingClaims` and, against production
+  Morpho, by `test_ForkBase_InvestIdleLeavesBuyerLiabilityFullyLiquid`.
+- **The invest window is `[saleEnd, settlement)`.** Both `deposit` and
+  `buyPolicy` require `block.timestamp < saleEnd`, so past that instant
+  collateral, premiums and liability are all frozen and the idle figure cannot
+  go stale. That is why `buyPolicy` needed no changes and never has to
+  de-invest.
+
+`divest` is deliberately **not** called from `postSettlement`. A curated
+vault's instantly-redeemable liquidity is routinely a fraction of its deposits,
+and a `redeem` that reverted inside `postSettlement` would stop the claim
+window from ever opening — turning a temporary liquidity crunch on someone
+else's contract into buyers permanently losing a payout they had already
+earned. Kept separate, partial, and retryable, the worst a stuck vault can do
+is delay LP withdrawal. Both `investIdle` and `divest` are permissionless, so
+no LP ever waits on the operator.
 
 ## Example: a buyer's walkthrough
 
@@ -272,6 +322,27 @@ withdraw whatever's left in the pool, unclaimed payouts included.
   pricing is set once by the operator at period creation, not derived from a
   live market. V2: aggregate real prediction-market prices or a growing
   on-chain track record.
+- **Yield venue is an owner-configured knob.** `vault` and `investBps` are set
+  by the owner with no per-LP opt-out. Pointing the pool at a malicious or
+  failing vault loses LP principal, up to `investBps` of unsold capacity. LP
+  principal carries the venue's risk; buyers' payouts never do.
+- **No divest escape hatch.** If a vault permanently blocks redemption,
+  `withdraw()` stays blocked for that period — and the blast radius is the
+  *whole* period, not just the invested slice, because every LP is paid one
+  pro-rata slice of one final number. Same shape of cost as the settlement
+  lock above, named rather than papered over with an owner-only write-off
+  button.
+- **Divest is a manual step.** Someone has to call `divest` before `withdraw`
+  works. It is permissionless and retryable so any LP can do it themselves.
+- **Yield is not in `quote()`.** Pricing is untouched; all vault yield accrues
+  to LPs through the existing pro-rata `withdraw()`.
+- **Morpho Vaults V2 is not on Base Sepolia.** Only Morpho Blue, the adaptive
+  IRM and the MetaMorpho (Vaults V1) factory are deployed there — the V2
+  factory address the docs list under Base Sepolia has no code on that chain.
+  A freshly created MetaMorpho vault also derives `maxDeposit` from its
+  enabled markets, so it accepts no deposits until the owner submits and
+  accepts a market cap, which is timelocked at one day minimum. Hence the
+  three-venue split described under "Running it".
 - **No factory.** One contract holds all periods. V2:
   `InflationHedgeFactory` deploying minimal-proxy pools per period/operator.
 - **Policies aren't tokenized.** A policy is a struct + owner mapping, not
@@ -280,7 +351,11 @@ withdraw whatever's left in the pool, unclaimed payouts included.
 **Deliberately not built**, even though some of it is "obvious DeFi": LP
 positions as a Uniswap-style AMM/LMSR market, ERC-1155 YES/NO shares, a
 secondary market for policies, cross-chain deployment, a governance token, a
-DAO, liquidity mining. Every one of these trades demo reliability this close
+DAO, liquidity mining. On the yield side specifically: auto-compounding across
+periods, a protocol fee or LP/protocol split on yield, multiple vaults per
+period, per-LP opt-out, and re-investing after a partial divest (single-shot
+per period is what forecloses a rounding-grind loop against ERC-4626's floor
+rounding). Every one of these trades demo reliability this close
 to submission for surface area that doesn't move any of the judging
 narratives above.
 
@@ -290,9 +365,12 @@ narratives above.
 contracts/          Foundry project
   src/InflationHedge.sol   core contract
   src/MockUSDT.sol         open-mint testnet USDT stand-in
+  src/MockYieldVault.sol   testnet ERC-4626 vault; reproduces Vaults V2 quirks
   src/IInflationOracle.sol V2 oracle-adapter seam (unwired, documented only)
-  test/                    29 tests: unit, fuzz (20k runs), stateful invariant
-  script/Deploy.s.sol      deploys MockUSDT + InflationHedge
+  test/                    60 tests: unit, fuzz (20k runs), stateful invariant
+  test/InflationHedgeMorphoFork.t.sol  real Morpho on a Base mainnet fork
+  script/Deploy.s.sol      deploys MockUSDT + InflationHedge + MockYieldVault
+  script/DeployMorphoVault.s.sol  creates a real MetaMorpho vault (Base Sepolia)
   script/Demo.s.sol        3-phase real-broadcast lifecycle demo
   script/demo.sh           orchestrates the 3 phases with real wall-clock waits
 web/               Next.js + wagmi/viem + RainbowKit frontend
@@ -308,10 +386,22 @@ web/               Next.js + wagmi/viem + RainbowKit frontend
 ```
 cd contracts
 forge build
-forge test -vvv                                    # 29 tests, all green
+forge test -vvv                                    # 60 tests, all green
 forge test --match-contract Fuzz --fuzz-runs 20000  # pricing/solvency properties
 forge test --match-contract Invariant -vvv          # stateful solvency fuzzing
+
+# Real Morpho, real yield, on a Base mainnet fork. Skips loudly without the
+# env var, so plain `forge test` (and CI) never needs an RPC.
+BASE_RPC_URL=https://mainnet.base.org forge test --match-contract MorphoFork -vv
 ```
+
+### Where the Morpho integration is real, and where it is a prop
+
+| Venue | What it proves | What it does not |
+| --- | --- | --- |
+| Base mainnet fork test | Real deposits, share accounting and accrued interest in Gauntlet USDC Prime (`0xeE8F...4b61`), measured at **3.86% APY** over 30 days | It is a MetaMorpho **V1** vault, so it cannot prove the "never gate on `max*`" property |
+| `MockYieldVault` (anvil) | The Vaults **V2** quirks: all four `max*` functions hardcoded to 0, plus deposit gating and thin liquidity | Not a yield source; accrual is simulated |
+| Base Sepolia | A real MetaMorpho vault can be created over our own collateral | Vaults V2 is not deployed there, and a fresh vault takes no deposits until a market cap is accepted (1-day timelock) |
 
 ### Full lifecycle demo (local anvil, real broadcast transactions)
 
@@ -326,10 +416,15 @@ cd contracts
 bash script/demo.sh
 ```
 
-Deploys fresh contracts, creates a period, deposits, buys a policy, waits
-for the period to end, posts settlement (opening the claim window), claims,
-waits for the claim window to close, and withdraws — printing the USDT
-balance change at each step.
+Deploys fresh contracts, creates a period, deposits, buys a policy, waits for
+the sale window to close, deploys the unsold capacity into the yield vault,
+waits for the period to end, posts settlement (opening the claim window),
+claims, unwinds the vault position, waits for the claim window to close, and
+withdraws — printing the USDT balance change at each step.
+
+A run on local anvil, end to end: 966.80 USDT of unsold capacity deployed,
+25.00 of yield accrued, buyer paid 20.00, LP withdrew **1,021.80** = 1,000
+principal + 16.80 premium + 25.00 yield − 20.00 claimed.
 
 ### Frontend
 
@@ -356,6 +451,7 @@ script/Deploy.s.sol --broadcast` any time:
 |------------------|---------|
 | MockUSDT         | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
 | InflationHedge   | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
+| MockYieldVault   | `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0` |
 
 **Base Sepolia** (chain id `84532`) — _pending a funded deployer key,
 see below._ The live Vercel frontend currently points at placeholder
@@ -387,6 +483,8 @@ addresses (`0x0...dEaD`) on this chain until that deploy runs.
 - [x] Derived claim window (settlement-time-based, not creation-time-fixed)
 - [x] Frontend (buyer / LP / admin flows) verified against local anvil
 - [x] GitHub repo, CI, and Vercel auto-deploy for the frontend
+- [x] Idle LP liquidity deployed to an ERC-4626 (Morpho) vault, with the
+      buyer-liquidity invariant and a real Base-mainnet fork test
 - [ ] Base Sepolia deployment — blocked on a funded deployer key
 - [ ] Real Tether WDK wallet integration (connect, balance, signed txs)
 - [ ] Payoff curve + pricing/EV breakdown in the buyer UI

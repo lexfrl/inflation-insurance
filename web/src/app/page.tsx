@@ -214,6 +214,15 @@ function BuyForm({
         </div>
       </div>
 
+      {/* The pool earns yield on capital nobody has bought protection against.
+          Buyers reasonably want to know their payout is not what is at risk
+          there, so the guarantee is stated where the payout number is, not
+          buried in a doc. */}
+      <p className="mt-3 text-center text-xs text-white/40">
+        Your maximum payout is always held liquid in the contract. Only capacity nobody bought is
+        deployed to earn yield.
+      </p>
+
       <div className="mt-6">
         {!isConnected ? (
           <p className="text-center text-white/50">Connect your wallet to buy protection.</p>
