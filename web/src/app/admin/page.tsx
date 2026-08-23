@@ -28,7 +28,7 @@ export default function AdminPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold">Admin</h1>
-        <p className="mt-1 text-paper-300">Owner-only. Create periods and post CPI settlements.</p>
+        <p className="mt-1 text-content-300">Owner-only. Create periods and post CPI settlements.</p>
       </div>
 
       {!isConnected ? (
@@ -86,7 +86,7 @@ function CreatePeriodForm() {
   };
 
   return (
-    <div className="rounded-card border border-ink-700 bg-ink-850 p-6">
+    <div className="rounded-card border border-surface-700 bg-surface-850 p-6">
       <h2 className="mb-4 font-semibold">Create period</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Label" value={label} onChange={setLabel} />
@@ -129,7 +129,7 @@ function PostSettlementForm() {
   useEffect(() => {}, []);
 
   return (
-    <div className="rounded-card border border-ink-700 bg-ink-850 p-6">
+    <div className="rounded-card border border-surface-700 bg-surface-850 p-6">
       <h2 className="mb-4 font-semibold">Post CPI settlement</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Period id" value={periodId} onChange={setPeriodId} />
@@ -171,11 +171,11 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-paper-300">{label}</span>
+      <span className="text-content-300">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-control border border-ink-700 bg-ink-900 px-3 py-2"
+        className="rounded-control border border-surface-700 bg-surface-900 px-3 py-2"
       />
     </label>
   );

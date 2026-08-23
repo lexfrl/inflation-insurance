@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 export function Card({ children, className = "" }: { children?: ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-card border border-ink-700 bg-ink-850 ${className}`}
+      className={`rounded-card border border-surface-700 bg-surface-850 shadow-[var(--shadow-card)] ${className}`}
     >
       {children}
     </div>
@@ -19,8 +19,8 @@ export function Card({ children, className = "" }: { children?: ReactNode; class
 export function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-paper-100 sm:text-3xl">{title}</h1>
-      {sub && <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-paper-300">{sub}</p>}
+      <h1 className="text-2xl font-semibold tracking-tight text-content-100 sm:text-3xl">{title}</h1>
+      {sub && <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-content-300">{sub}</p>}
     </div>
   );
 }
@@ -45,16 +45,16 @@ export function Stat({
       ? "text-accent-300"
       : tone === "positive"
         ? "text-signal-positive"
-        : "text-paper-100";
+        : "text-content-100";
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-paper-600">{label}</div>
+      <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-content-600">{label}</div>
       {loading ? (
-        <div className="mt-1.5 h-6 w-20 animate-pulse rounded bg-ink-700" />
+        <div className="mt-1.5 h-6 w-20 animate-pulse rounded bg-surface-700" />
       ) : (
         <div className={`mt-1 truncate font-mono text-xl tnum ${toneClass}`}>
           {value}
-          {unit && <span className="ml-1 font-sans text-xs text-paper-600">{unit}</span>}
+          {unit && <span className="ml-1 font-sans text-xs text-content-600">{unit}</span>}
         </div>
       )}
     </div>
@@ -72,9 +72,9 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-paper-300">{label}</span>
+      <span className="text-sm font-medium text-content-300">{label}</span>
       {children}
-      {hint && <span className="text-xs leading-relaxed text-paper-600">{hint}</span>}
+      {hint && <span className="text-xs leading-relaxed text-content-600">{hint}</span>}
     </label>
   );
 }
@@ -94,14 +94,15 @@ export function Button({
   variant = "primary",
   className = "",
 }: ButtonProps) {
-  /* Contrast: primary is ink-950 text on accent-400 (dark on light), which
-     clears WCAG AA at body size. Secondary is paper-100 on ink-800 with a
+  /* Contrast: primary is surface-950 text on accent-400 (dark on light), which
+     clears WCAG AA at body size. Secondary is content-100 on surface-800 with a
      visible border, so it never disappears into the card behind it. */
   const base =
     "rounded-control px-5 py-2.5 text-sm font-medium transition-[transform,background-color] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-ui)] active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-40";
   const variants = {
-    primary: "bg-accent-400 text-ink-950 hover:bg-accent-300",
-    secondary: "border border-ink-600 bg-ink-800 text-paper-100 hover:border-ink-600 hover:bg-ink-700",
+    // On a light page a hover has to go darker. Lightening reads as disabled.
+    primary: "bg-accent-400 text-surface-950 hover:bg-accent-500",
+    secondary: "border border-surface-600 bg-surface-850 text-content-100 hover:bg-surface-800",
   };
   return (
     <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>
@@ -114,7 +115,7 @@ export function Callout({ tone, children }: { tone: "danger" | "positive" | "mut
   const tones = {
     danger: "border-signal-danger/40 bg-signal-danger/10 text-signal-danger",
     positive: "border-signal-positive/40 bg-signal-positive/10 text-signal-positive",
-    muted: "border-ink-700 bg-ink-800 text-paper-300",
+    muted: "border-surface-700 bg-surface-800 text-content-300",
   };
   return (
     <div className={`rounded-control border px-4 py-3 text-sm leading-relaxed ${tones[tone]}`}>
@@ -139,8 +140,8 @@ export function Chip({
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
         active
-          ? "bg-accent-400 text-ink-950"
-          : "border border-ink-700 bg-ink-850 text-paper-300 hover:border-ink-600 hover:text-paper-100"
+          ? "bg-accent-400 text-surface-950 shadow-[var(--shadow-card)]"
+          : "border border-surface-600 bg-surface-850 text-content-300 hover:bg-surface-800 hover:text-content-100"
       }`}
     >
       {children}

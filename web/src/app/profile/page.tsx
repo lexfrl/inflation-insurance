@@ -25,7 +25,7 @@ export default function ProfilePage() {
           sub="Connect a wallet to open your account. There is nothing to sign up for: the wallet is the account, and everything you hold lives on-chain."
         />
         <Card className="flex flex-col items-center gap-4 p-10 text-center">
-          <p className="text-paper-300">No wallet connected yet.</p>
+          <p className="text-content-300">No wallet connected yet.</p>
           <ConnectButton label="Connect wallet" showBalance={false} />
         </Card>
       </div>
@@ -130,17 +130,17 @@ function ConnectedProfile({ address }: { address: `0x${string}` }) {
 
       <Card className="flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-paper-600">
+          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-content-600">
             Signed in as
           </div>
-          <div className="mt-1 font-mono text-lg text-paper-100">{short}</div>
+          <div className="mt-1 font-mono text-lg text-content-100">{short}</div>
         </div>
         <div className="sm:text-right">
-          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-paper-600">
+          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-content-600">
             Wallet balance
           </div>
-          <div className="mt-1 font-mono text-lg text-paper-100 tnum">
-            {formatUsdt(usdtBalance)} <span className="font-sans text-xs text-paper-600">USDT</span>
+          <div className="mt-1 font-mono text-lg text-content-100 tnum">
+            {formatUsdt(usdtBalance)} <span className="font-sans text-xs text-content-600">USDT</span>
           </div>
         </div>
       </Card>
@@ -159,7 +159,7 @@ function ConnectedProfile({ address }: { address: `0x${string}` }) {
         return pos && pos[0] > 0n;
       }) && (
         <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold tracking-tight text-paper-100">
+          <h2 className="text-lg font-semibold tracking-tight text-content-100">
             Where you are the insurer
           </h2>
           <div className="flex flex-col gap-3">
@@ -170,13 +170,13 @@ function ConnectedProfile({ address }: { address: `0x${string}` }) {
               return (
                 <Card key={i} className="flex items-center justify-between gap-4 p-4">
                   <div className="min-w-0">
-                    <div className="font-medium text-paper-100">{label}</div>
-                    <div className="mt-1 text-sm text-paper-500">
+                    <div className="font-medium text-content-100">{label}</div>
+                    <div className="mt-1 text-sm text-content-500">
                       <span className="font-mono tnum">{formatUsdt(pos[0])} USDT</span> in, holding{" "}
                       <span className="font-mono tnum">{formatBps(pos[1])}</span> of the pool
                     </div>
                   </div>
-                  <Link href="/earn" className="shrink-0 text-sm text-accent-400 hover:text-accent-300">
+                  <Link href="/earn" className="shrsurface-0 text-sm text-accent-400 hover:text-accent-300">
                     Manage
                   </Link>
                 </Card>
@@ -186,16 +186,16 @@ function ConnectedProfile({ address }: { address: `0x${string}` }) {
         </section>
       )}
 
-      <section className="grid gap-px overflow-hidden rounded-card border border-ink-700 bg-ink-700 sm:grid-cols-2">
-        <Link href="/protect" className="group bg-ink-900 p-5 transition-colors hover:bg-ink-850">
-          <h3 className="text-sm font-semibold text-paper-100">Buy cover</h3>
-          <p className="mt-2 text-sm leading-relaxed text-paper-500">
+      <section className="grid gap-px overflow-hidden rounded-card border border-surface-700 bg-surface-700 sm:grid-cols-2">
+        <Link href="/protect" className="group bg-surface-850 p-5 transition-colors hover:bg-surface-800">
+          <h3 className="text-sm font-semibold text-content-100">Buy cover</h3>
+          <p className="mt-2 text-sm leading-relaxed text-content-500">
             Protect a month of spending against a jump in prices.
           </p>
         </Link>
-        <Link href="/earn" className="group bg-ink-900 p-5 transition-colors hover:bg-ink-850">
-          <h3 className="text-sm font-semibold text-paper-100">Earn by backing cover</h3>
-          <p className="mt-2 text-sm leading-relaxed text-paper-500">
+        <Link href="/earn" className="group bg-surface-850 p-5 transition-colors hover:bg-surface-800">
+          <h3 className="text-sm font-semibold text-content-100">Earn by backing cover</h3>
+          <p className="mt-2 text-sm leading-relaxed text-content-500">
             Take the other side. Collect what buyers pay, pay out if inflation runs hot.
           </p>
         </Link>

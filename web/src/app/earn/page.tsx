@@ -53,8 +53,8 @@ export default function LpPage() {
       {periodsFailed ? (
         <Card className="flex flex-col items-center gap-4 p-10 text-center">
           <div>
-            <p className="text-paper-100">Can&apos;t reach the network right now.</p>
-            <p className="mt-2 text-sm text-paper-500">
+            <p className="text-content-100">Can&apos;t reach the network right now.</p>
+            <p className="mt-2 text-sm text-content-500">
               The contract read failed. Check your network, then try again.
             </p>
           </div>
@@ -66,8 +66,8 @@ export default function LpPage() {
         <Card className="h-64 animate-pulse" />
       ) : periods.length === 0 ? (
         <Card className="p-10 text-center">
-          <p className="text-paper-100">No periods to underwrite yet.</p>
-          <p className="mt-2 text-sm text-paper-500">
+          <p className="text-content-100">No periods to underwrite yet.</p>
+          <p className="mt-2 text-sm text-content-500">
             Deposits open when an operator creates a period, and close the moment the first policy sells.
           </p>
         </Card>
@@ -179,7 +179,7 @@ function PoolPanel({
 
       <Card className="p-5">
         {shares !== undefined && shares > 0n && (
-          <p className="mb-5 text-sm text-paper-300">
+          <p className="mb-5 text-sm text-content-300">
             Your position: <span className="font-mono tnum">{formatUsdt(shares)} USDT</span> deposited,{" "}
             <span className="font-mono tnum">{formatBps(shareOfPoolBps)}</span> of the pool.
           </p>
@@ -194,9 +194,9 @@ function PoolPanel({
                   min={0}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum focus:border-accent-500"
+                  className="w-full rounded-control border border-surface-600 bg-surface-850 px-3 py-2.5 pr-16 font-mono text-content-100 tnum focus:border-accent-400"
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content-500">
                   USDT
                 </span>
               </div>
@@ -205,9 +205,9 @@ function PoolPanel({
 
           <div className="sm:pb-6">
             {!isConnected ? (
-              <span className="text-sm text-paper-500">Connect wallet</span>
+              <span className="text-sm text-content-500">Connect wallet</span>
             ) : !saleOpen ? (
-              <span className="text-sm text-paper-500">Deposits closed</span>
+              <span className="text-sm text-content-500">Deposits closed</span>
             ) : needsApproval ? (
               <Button
                 disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
@@ -243,7 +243,7 @@ function PoolPanel({
           </div>
         </div>
 
-        <div className="mt-5 border-t border-ink-700 pt-5">
+        <div className="mt-5 border-t border-surface-700 pt-5">
           <Button
             variant="secondary"
             disabled={

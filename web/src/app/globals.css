@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
-/* Hedgy design tokens, derived from SolPump's own token layer so the two
-   products read as one house style. Fixed dark theme (see the note at the
-   bottom of this file for why there is no unlayered `body` rule). One accent
-   for the whole product -- the payoff curve, primary buttons, focus rings and
-   selected states all draw from it, and nothing else introduces a second hue.
-   Semantic colors exist only for states that genuinely mean something. */
+/* Hedgy design tokens. A light dashboard, following the Truflation reference.
+   One accent for the whole product -- the payoff curve, primary buttons, focus
+   rings and selected states all draw from it, and nothing else introduces a
+   second hue. Semantic colors exist only for states that genuinely mean
+   something: a number that moved, a transaction that failed. */
 /* `inline` matters for these two: the values are CSS vars defined on <html>
    by next/font, and inlining is what the original file did for the same
    reason. Colors and radii below are plain values, so they use a normal
@@ -16,47 +15,45 @@
 }
 
 @theme {
-  /* Palette lifted from SolPump's token layer (frontend/src/assets/css/main.css)
-     so the two products read as the same house. Its rules, kept intact:
-     surfaces step UP in lightness rather than glowing, depth comes from that
-     step plus a hairline border, and there is exactly one accent, spent
-     carefully. */
+  /* Light dashboard palette, following the Truflation reference: a very light
+     page, white cards lifted by a soft shadow and a hairline rather than by
+     heavy borders, one blue accent, and green/red reserved strictly for
+     movement in a number. */
 
-  /* Surfaces. */
-  --color-ink-950: #050505;
-  --color-ink-900: #070708;
-  --color-ink-850: #0d0d0f;
-  --color-ink-800: #1a1a1e;
-  /* The two "ink" steps used as borders are translucent white on purpose:
-     that hairline is the signature of the SolPump surface treatment. */
-  --color-ink-700: rgba(255, 255, 255, 0.09);
-  --color-ink-600: rgba(255, 255, 255, 0.16);
+  /* Surfaces. `surface-950` is the colour that sits ON the accent, which in a
+     light theme means white. */
+  --color-surface-950: #ffffff;
+  --color-surface-900: #f6f7f9;
+  --color-surface-850: #ffffff;
+  --color-surface-800: #eef1f6;
+  --color-surface-700: #e4e8ef;
+  --color-surface-600: #cfd6e2;
 
-  /* Text ramp, four steps so hierarchy is a decision and not a guess. */
-  --color-paper-100: #f4f4f5;
-  --color-paper-300: #a1a1aa;
-  --color-paper-500: #6b6b74;
-  --color-paper-600: #5b5b63;
+  /* Text ramp, four steps. */
+  --color-content-100: #0d1220;
+  --color-content-300: #464f66;
+  --color-content-500: #6a7387;
+  --color-content-600: #8a92a4;
 
-  /* The one accent: acid lime. Anything sitting on it uses ink-950. */
-  --color-accent-300: #e2ff4a;
-  --color-accent-400: #d4f512;
-  --color-accent-500: #b5d40a;
-  --color-accent-600: #8fa808;
+  /* One accent. 300 is the light tint used for fills, 500/600 darken for
+     hover and pressed states -- on a light background a hover has to go
+     darker, not lighter. */
+  --color-accent-300: #7c93ff;
+  --color-accent-400: #3b5bf5;
+  --color-accent-500: #2c46d4;
+  --color-accent-600: #1f34a8;
 
-  /* Semantic state only. Orange is what the settled-CPI marker uses, so it
-     stays legible against a lime payoff curve. */
-  --color-signal-positive: #d4f512;
-  --color-signal-warning: #ff6b00;
-  --color-signal-danger: #ff3b4e;
+  --color-signal-positive: #12a150;
+  --color-signal-warning: #c2710a;
+  --color-signal-danger: #d6403a;
 
-  /* Radii from SolPump's scale (8 / 12 / 16 / 20), well down from pills. */
   --radius-card: 12px;
   --radius-control: 8px;
+
+  --shadow-card: 0 1px 2px rgba(13, 18, 32, 0.04), 0 4px 12px rgba(13, 18, 32, 0.05);
+  --shadow-raised: 0 2px 6px rgba(13, 18, 32, 0.06), 0 12px 28px rgba(13, 18, 32, 0.08);
 }
 
-/* SolPump's motion tokens: 0.15s `ease` barely decelerates and lands hard, so
-   every transition here shares one soft finish and one place to tune it. */
 :root {
   --ease-ui: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur-fast: 0.22s;
@@ -91,12 +88,12 @@
   input[type="range"]::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 999px;
-    background: var(--color-ink-700);
+    background: var(--color-surface-700);
   }
   input[type="range"]::-moz-range-track {
     height: 4px;
     border-radius: 999px;
-    background: var(--color-ink-700);
+    background: var(--color-surface-700);
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -106,7 +103,7 @@
     width: 18px;
     border-radius: 999px;
     background: var(--color-accent-400);
-    border: 3px solid var(--color-ink-900);
+    border: 3px solid var(--color-surface-850);
     box-shadow: 0 0 0 1px var(--color-accent-600);
     transition: transform 120ms ease;
   }
@@ -115,7 +112,7 @@
     width: 18px;
     border-radius: 999px;
     background: var(--color-accent-400);
-    border: 3px solid var(--color-ink-900);
+    border: 3px solid var(--color-surface-850);
     box-shadow: 0 0 0 1px var(--color-accent-600);
   }
   input[type="range"]:active::-webkit-slider-thumb {

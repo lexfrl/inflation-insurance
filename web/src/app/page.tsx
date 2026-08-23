@@ -22,23 +22,23 @@ export default function LandingPage() {
 
       <GetStarted />
 
-      <section className="flex flex-col gap-6 border-t border-ink-700 pt-12">
+      <section className="flex flex-col gap-6 border-t border-surface-700 pt-12">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-paper-100">
+          <h2 className="text-2xl font-semibold tracking-tight text-content-100">
             The payout grows with the damage
           </h2>
-          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-paper-300">
+          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-content-300">
             A prediction market on inflation pays the same whether prices rise 3.01% or 12%. It
             answers &ldquo;did it happen&rdquo;. That is a fine bet and a poor hedge, because your grocery
             bill keeps climbing after the threshold and the payout does not.
           </p>
-          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-paper-300">
+          <p className="mt-3 max-w-[62ch] text-[15px] leading-relaxed text-content-300">
             Here the payout tracks how far past your level inflation actually went, up to a
             ceiling. Covering 1,000 above 3% pays nothing at 3%, 30 at 6%, and 50 from 8% up.
           </p>
         </div>
 
-        <div className="rounded-card border border-ink-700 bg-ink-850 p-5">
+        <div className="rounded-card border border-surface-700 bg-surface-850 p-5">
           <PayoffChart
             capBps={DEMO.capBps}
             strikeBps={DEMO.strikeBps}
@@ -49,34 +49,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-ink-700 pt-12">
-        <h2 className="text-2xl font-semibold tracking-tight text-paper-100">Who this is for</h2>
-        <div className="mt-6 grid gap-px overflow-hidden rounded-card border border-ink-700 bg-ink-700 sm:grid-cols-2">
-          <div className="bg-ink-900 p-5">
-            <h3 className="text-sm font-semibold text-paper-100">People with a monthly budget</h3>
-            <p className="mt-2 text-sm leading-relaxed text-paper-500">
+      <section className="border-t border-surface-700 pt-12">
+        <h2 className="text-2xl font-semibold tracking-tight text-content-100">Who this is for</h2>
+        <div className="mt-6 grid gap-px overflow-hidden rounded-card border border-surface-700 bg-surface-700 sm:grid-cols-2">
+          <div className="bg-surface-850 p-5">
+            <h3 className="text-sm font-semibold text-content-100">People with a monthly budget</h3>
+            <p className="mt-2 text-sm leading-relaxed text-content-500">
               Rent, food, transport. When the number at the till moves faster than your income,
               this pays the difference on the part you chose to cover.
             </p>
           </div>
-          <div className="bg-ink-900 p-5">
-            <h3 className="text-sm font-semibold text-paper-100">Small businesses</h3>
-            <p className="mt-2 text-sm leading-relaxed text-paper-500">
+          <div className="bg-surface-850 p-5">
+            <h3 className="text-sm font-semibold text-content-100">Small businesses</h3>
+            <p className="mt-2 text-sm leading-relaxed text-content-500">
               The hedges large companies use need a broker account and a minimum size. Buying
               stock you do not need yet is not a hedge, it is a cash-flow problem. This works at
               any size, from a phone.
             </p>
           </div>
-          <div className="bg-ink-900 p-5">
-            <h3 className="text-sm font-semibold text-paper-100">People holding stablecoins</h3>
-            <p className="mt-2 text-sm leading-relaxed text-paper-500">
+          <div className="bg-surface-850 p-5">
+            <h3 className="text-sm font-semibold text-content-100">People holding stablecoins</h3>
+            <p className="mt-2 text-sm leading-relaxed text-content-500">
               Dollars protect you from the peso. They do not protect you from prices in dollars
               rising. This covers the second thing.
             </p>
           </div>
-          <div className="bg-ink-900 p-5">
-            <h3 className="text-sm font-semibold text-paper-100">Anyone willing to be the insurer</h3>
-            <p className="mt-2 text-sm leading-relaxed text-paper-500">
+          <div className="bg-surface-850 p-5">
+            <h3 className="text-sm font-semibold text-content-100">Anyone willing to be the insurer</h3>
+            <p className="mt-2 text-sm leading-relaxed text-content-500">
               The other side is open too. Put up USDT, take the premiums, pay out if inflation
               runs hot. Same contract, opposite seat.
             </p>
@@ -84,11 +84,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-5 border-t border-ink-700 pt-12">
-        <h2 className="text-2xl font-semibold tracking-tight text-paper-100">
+      <section className="flex flex-col gap-5 border-t border-surface-700 pt-12">
+        <h2 className="text-2xl font-semibold tracking-tight text-content-100">
           Ready when you are
         </h2>
-        <p className="max-w-[62ch] text-[15px] leading-relaxed text-paper-300">
+        <p className="max-w-[62ch] text-[15px] leading-relaxed text-content-300">
           Connect a wallet and you have an account. Everything after that happens on-chain:
           the price you are quoted, the cover you hold, and the payout.
         </p>

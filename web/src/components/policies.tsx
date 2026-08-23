@@ -61,7 +61,7 @@ export function MyPolicies({
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold tracking-tight text-paper-100">{heading}</h2>
+      <h2 className="text-lg font-semibold tracking-tight text-content-100">{heading}</h2>
       <div className="flex flex-col gap-3">
         {policyIds.map((id, i) => {
           const policy = policies?.[i]?.result as
@@ -133,11 +133,11 @@ function PolicyRow({
     <Card className="p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="font-medium text-paper-100">
+          <div className="font-medium text-content-100">
             <span className="font-mono tnum">{formatUsdt(policy.notional)} USDT</span> covered above{" "}
             <span className="font-mono tnum text-accent-300">{formatBps(policy.strikeBps)}</span>
           </div>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-paper-500">
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-content-500">
             <span>
               Max payout <span className="font-mono tnum">{formatUsdt(policy.maxPayout)}</span>
             </span>
@@ -148,7 +148,7 @@ function PolicyRow({
           </div>
         </div>
         {policy.claimed ? (
-          <span className="shrink-0 text-sm text-paper-600">Claimed</span>
+          <span className="shrsurface-0 text-sm text-content-600">Claimed</span>
         ) : (
           <Button
             variant={settled && !expired ? "primary" : "secondary"}
@@ -162,7 +162,7 @@ function PolicyRow({
                 chainId,
               })
             }
-            className="shrink-0"
+            className="shrsurface-0"
           >
             {claim.isPending || claimReceipt.isLoading
               ? "Claiming"

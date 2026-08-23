@@ -16,11 +16,11 @@ export function GetStarted() {
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/profile"
-          className="rounded-control bg-accent-400 px-5 py-2.5 text-sm font-medium text-ink-950 transition-[transform,background-color] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-ui)] hover:bg-accent-300 active:translate-y-[1px]"
+          className="rounded-control bg-accent-400 px-5 py-2.5 text-sm font-medium text-surface-950 transition-[transform,background-color] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-ui)] hover:bg-accent-300 active:translate-y-[1px]"
         >
           Go to your profile
         </Link>
-        <span className="text-sm text-paper-500">Your wallet is connected.</span>
+        <span className="text-sm text-content-500">Your wallet is connected.</span>
       </div>
     );
   }
@@ -28,7 +28,7 @@ export function GetStarted() {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <ConnectButton label="Connect wallet to start" showBalance={false} />
-      <span className="text-sm text-paper-500">
+      <span className="text-sm text-content-500">
         No sign-up. Your wallet is your account.
       </span>
     </div>

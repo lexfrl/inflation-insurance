@@ -110,14 +110,14 @@ export function PayoffChart({
               x2={W - PAD.r}
               y1={y(yMax * f)}
               y2={y(yMax * f)}
-              stroke="var(--color-ink-700)"
+              stroke="var(--color-surface-700)"
               strokeWidth="1"
             />
             <text
               x={PAD.l - 10}
               y={y(yMax * f) + 4}
               textAnchor="end"
-              className="fill-paper-600 font-mono text-[11px]"
+              className="fill-content-600 font-mono text-[11px]"
             >
               {(yMax * f).toFixed(maxPayout > 0 && yMax < 10 ? 1 : 0)}
             </text>
@@ -136,14 +136,14 @@ export function PayoffChart({
                 width={barW}
                 height={h}
                 rx="2"
-                fill="var(--color-paper-600)"
+                fill="var(--color-content-600)"
                 opacity="0.22"
               />
               <text
                 x={x(b)}
                 y={H - PAD.b - h - 6}
                 textAnchor="middle"
-                className="fill-paper-600 font-mono text-[10px]"
+                className="fill-content-600 font-mono text-[10px]"
               >
                 {((probs[i] ?? 0) / 100).toFixed(0)}%
               </text>
@@ -175,11 +175,11 @@ export function PayoffChart({
           x2={x(capBps)}
           y1={PAD.t}
           y2={H - PAD.b}
-          stroke="var(--color-ink-600)"
+          stroke="var(--color-surface-600)"
           strokeWidth="1"
           strokeDasharray="3 4"
         />
-        <text x={x(capBps) + 6} y={PAD.t + 11} className="fill-paper-600 font-mono text-[11px]">
+        <text x={x(capBps) + 6} y={PAD.t + 11} className="fill-content-600 font-mono text-[11px]">
           covered to {(capBps / 100).toFixed(2)}%
         </text>
 
@@ -211,7 +211,7 @@ export function PayoffChart({
               cy={y(settledPayout)}
               r="5"
               fill="var(--color-signal-warning)"
-              stroke="var(--color-ink-900)"
+              stroke="var(--color-surface-900)"
               strokeWidth="2"
             />
           </g>
@@ -225,7 +225,7 @@ export function PayoffChart({
           x2={W - PAD.r}
           y1={H - PAD.b}
           y2={H - PAD.b}
-          stroke="var(--color-ink-600)"
+          stroke="var(--color-surface-600)"
           strokeWidth="1"
         />
         {buckets.map((b, i) => (
@@ -234,12 +234,12 @@ export function PayoffChart({
             x={x(b)}
             y={H - PAD.b + 15}
             textAnchor="middle"
-            className="fill-paper-500 font-mono text-[11px]"
+            className="fill-content-500 font-mono text-[11px]"
           >
             {(b / 100).toFixed(0)}%
           </text>
         ))}
-        <text x={PAD.l} y={H - 8} className="fill-paper-600 text-[11px]">
+        <text x={PAD.l} y={H - 8} className="fill-content-600 text-[11px]">
           Inflation over the period
         </text>
         {/* Sits above the top gridline, not level with it: at PAD.t it
@@ -248,7 +248,7 @@ export function PayoffChart({
           x={PAD.l - 10}
           y={PAD.t - 12}
           textAnchor="end"
-          className="fill-paper-600 font-mono text-[11px]"
+          className="fill-content-600 font-mono text-[11px]"
         >
           USDT
         </text>

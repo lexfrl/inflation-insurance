@@ -75,8 +75,8 @@ export default function BuyerPage() {
       {periodsFailed ? (
         <Card className="flex flex-col items-center gap-4 p-10 text-center">
           <div>
-            <p className="text-paper-100">Can&apos;t reach the network right now.</p>
-            <p className="mt-2 text-sm text-paper-500">
+            <p className="text-content-100">Can&apos;t reach the network right now.</p>
+            <p className="mt-2 text-sm text-content-500">
               The contract read failed. Check that your wallet is on the right network, then try
               again.
             </p>
@@ -89,8 +89,8 @@ export default function BuyerPage() {
         <Card className="h-[420px] animate-pulse" />
       ) : periods.length === 0 ? (
         <Card className="p-10 text-center">
-          <p className="text-paper-100">No protection period is open yet.</p>
-          <p className="mt-2 text-sm text-paper-500">
+          <p className="text-content-100">No protection period is open yet.</p>
+          <p className="mt-2 text-sm text-content-500">
             An operator opens each period with its CPI terms before cover can be bought.
           </p>
         </Card>
@@ -200,7 +200,7 @@ function BuyForm({
           the price of it belong on screen together, so moving the strike
           slider visibly moves the kink in the curve. */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="border-b border-ink-700 p-5 lg:border-b-0 lg:border-r">
+        <div className="border-b border-surface-700 p-5 lg:border-b-0 lg:border-r">
           <PayoffChart
             capBps={capBps}
             strikeBps={strikeBps}
@@ -209,7 +209,7 @@ function BuyForm({
             probs={period.probBps.map(Number)}
             settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
           />
-          <p className="mt-3 text-xs leading-relaxed text-paper-600">
+          <p className="mt-3 text-xs leading-relaxed text-content-600">
             Bars show where inflation is expected to land, and how likely each outcome is. The
             line is what you receive if it lands there.
           </p>
@@ -235,9 +235,9 @@ function BuyForm({
                 min={0}
                 value={notionalInput}
                 onChange={(e) => setNotionalInput(e.target.value)}
-                className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum placeholder:text-paper-600 focus:border-accent-500"
+                className="w-full rounded-control border border-surface-600 bg-surface-850 px-3 py-2.5 pr-16 font-mono text-content-100 tnum placeholder:text-content-600 focus:border-accent-400"
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-content-500">
                 USDT
               </span>
             </div>
@@ -249,7 +249,7 @@ function BuyForm({
           >
             <div className="flex items-baseline justify-between">
               <span className="font-mono text-2xl text-accent-300 tnum">{formatBps(strikeBps)}</span>
-              <span className="text-xs text-paper-600">inflation</span>
+              <span className="text-xs text-content-600">inflation</span>
             </div>
             <input
               type="range"
@@ -262,7 +262,7 @@ function BuyForm({
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4 rounded-control border border-ink-700 bg-ink-900 p-4">
+          <div className="grid grid-cols-2 gap-4 rounded-control border border-surface-700 bg-surface-800 p-4">
             {/* `loading` is gated on "no value yet", not on "a request is in
                 flight": the quote refetches on every slider tick, and
                 flashing both numbers to skeletons each time made the panel
@@ -402,11 +402,11 @@ function ScenarioTable({
 
   return (
     <div>
-      <div className="mb-2 text-sm font-medium text-paper-300">What you would get</div>
-      <div className="overflow-hidden rounded-control border border-ink-700">
+      <div className="mb-2 text-sm font-medium text-content-300">What you would get</div>
+      <div className="overflow-hidden rounded-control border border-surface-700">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-ink-800 text-[11px] uppercase tracking-[0.06em] text-paper-600">
+            <tr className="bg-surface-800 text-[11px] uppercase tracking-[0.06em] text-content-500">
               <th className="px-3 py-2 text-left font-medium">Inflation</th>
               <th className="px-3 py-2 text-right font-medium">Chance</th>
               <th className="px-3 py-2 text-right font-medium">You get</th>
@@ -415,21 +415,21 @@ function ScenarioTable({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.cpi} className="border-t border-ink-700">
-                <td className="px-3 py-2 font-mono text-paper-100 tnum">{formatBps(r.cpi)}</td>
-                <td className="px-3 py-2 text-right font-mono text-paper-500 tnum">
+              <tr key={r.cpi} className="border-t border-surface-700">
+                <td className="px-3 py-2 font-mono text-content-100 tnum">{formatBps(r.cpi)}</td>
+                <td className="px-3 py-2 text-right font-mono text-content-500 tnum">
                   {formatBps(r.prob, 0)}
                 </td>
-                <td className="px-3 py-2 text-right font-mono tnum text-paper-100">
+                <td className="px-3 py-2 text-right font-mono tnum text-content-100">
                   {formatUsdt(r.payout)}
                 </td>
                 <td
                   className={`px-3 py-2 text-right font-mono tnum ${
                     r.net === undefined
-                      ? "text-paper-600"
+                      ? "text-content-600"
                       : r.net > 0n
                         ? "text-signal-positive"
-                        : "text-paper-500"
+                        : "text-content-500"
                   }`}
                 >
                   {r.net === undefined
