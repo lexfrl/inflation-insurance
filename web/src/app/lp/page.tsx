@@ -26,7 +26,11 @@ export default function LpPage() {
   const { address, isConnected } = useAccount();
   const { chainId, addresses } = useDemoTarget();
 
-  const { data: periods, refetch: refetchPeriods } = useReadContract({
+  const {
+    data: periods,
+    isError: periodsFailed,
+    refetch: refetchPeriods,
+  } = useReadContract({
     address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "listPeriods",
@@ -44,7 +48,21 @@ export default function LpPage() {
         sub="Deposit USDT to back a protection period. You earn the premiums buyers pay, minus whatever they claim if inflation clears their cover level."
       />
 
-      {periods === undefined ? (
+      {/* Same reasoning as the buyer page: a failed read must not read as
+          "still loading" forever. */}
+      {periodsFailed ? (
+        <Card className="flex flex-col items-center gap-4 p-10 text-center">
+          <div>
+            <p className="text-paper-100">Can&apos;t reach the network right now.</p>
+            <p className="mt-2 text-sm text-paper-500">
+              The contract read failed. Check your network, then try again.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={() => refetchPeriods()}>
+            Retry
+          </Button>
+        </Card>
+      ) : periods === undefined ? (
         <Card className="h-64 animate-pulse" />
       ) : periods.length === 0 ? (
         <Card className="p-10 text-center">

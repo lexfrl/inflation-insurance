@@ -39,7 +39,11 @@ export default function BuyerPage() {
   const { address, isConnected } = useAccount();
   const { chainId, addresses } = useDemoTarget();
 
-  const { data: periods, refetch: refetchPeriods } = useReadContract({
+  const {
+    data: periods,
+    isError: periodsFailed,
+    refetch: refetchPeriods,
+  } = useReadContract({
     address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "listPeriods",
@@ -64,7 +68,24 @@ export default function BuyerPage() {
         sub="Tell us how much you spend in a month and the inflation level you want covered. If prices rise past it, you get paid in proportion to how far past. No shares, no odds to trade."
       />
 
-      {periods === undefined ? (
+      {/* An unreachable RPC never resolves this read, so gating the skeleton
+          on `data === undefined` alone leaves it pulsing forever. That is
+          also the exact failure a judge sees on a flaky connection, so it
+          gets a real message and a way out rather than an endless shimmer. */}
+      {periodsFailed ? (
+        <Card className="flex flex-col items-center gap-4 p-10 text-center">
+          <div>
+            <p className="text-paper-100">Can&apos;t reach the network right now.</p>
+            <p className="mt-2 text-sm text-paper-500">
+              The contract read failed. Check that your wallet is on the right network, then try
+              again.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={() => refetchPeriods()}>
+            Retry
+          </Button>
+        </Card>
+      ) : periods === undefined ? (
         <Card className="h-[420px] animate-pulse" />
       ) : periods.length === 0 ? (
         <Card className="p-10 text-center">
