@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Hedgy design tokens. A dark dashboard, following the Truflation reference.
+/* Hedgy design tokens, matched to truflation.com's shipped stylesheet.
    One accent for the whole product -- the payoff curve, primary buttons, focus
    rings and selected states all draw from it, and nothing else introduces a
    second hue. Semantic colors exist only for states that genuinely mean
@@ -10,43 +10,45 @@
    reason. Colors and radii below are plain values, so they use a normal
    @theme block. */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-numeric);
 }
 
 @theme {
-  /* Dark dashboard palette, following the Truflation reference. Deep navy
-     page, cards a step up from it with a visible hairline, one blue accent,
-     and green/red reserved strictly for a number that moved. */
+  /* Palette taken from truflation.com's own stylesheet, not eyeballed from a
+     screenshot. Their tokens ship paired light/dark values under the same
+     names; these are the dark ones.
+       page/surfaces  --tn-50 .. --tn-300
+       muted text     --tn-400 / --tn-500
+       brand          --tf-400 / --tf-500 / --tf-600
+       up / down      --green-400 / --red-500
+       highlight      --primary (amber) */
 
-  /* `surface-950` is what sits ON the accent, which stays white here. */
+  /* `surface-950` is what sits ON the accent: white. */
   --color-surface-950: #ffffff;
-  --color-surface-900: #0d1220;
-  --color-surface-850: #151b2b;
-  --color-surface-800: #1e2536;
-  --color-surface-700: #262f42;
-  --color-surface-600: #36415a;
+  --color-surface-900: #0e141e; /* tn-50  */
+  --color-surface-850: #141c28; /* tn-150 */
+  --color-surface-800: #18202e; /* tn-200 */
+  --color-surface-700: #263241; /* tn-275 */
+  --color-surface-600: #2a3746; /* tn-300 */
 
-  --color-content-100: #e8edf5;
-  --color-content-300: #9aa7bd;
-  --color-content-500: #6f7d94;
-  --color-content-600: #56637a;
+  --color-content-100: #ffffff;
+  --color-content-300: #a5b2c3;
+  --color-content-500: #62768a; /* tn-500 */
+  --color-content-600: #58697d; /* tn-400 */
 
-  /* On a dark page a hover goes lighter, the opposite of the light theme. */
-  --color-accent-300: #7ea2ff;
-  --color-accent-400: #4f7dff;
-  --color-accent-500: #3b63e0;
-  --color-accent-600: #2c4bb5;
+  --color-accent-300: #6ea8ff; /* tf-400, the lighter cut used for hover */
+  --color-accent-400: #3b70da; /* tf-500, their primary blue */
+  --color-accent-500: #0b4299; /* tf-600 */
+  --color-accent-600: #0a3170; /* tf-700 */
 
-  --color-signal-positive: #3fd07f;
-  --color-signal-warning: #e3a047;
-  --color-signal-danger: #f2555a;
+  --color-signal-positive: #00d19e; /* green-400 */
+  --color-signal-warning: #f59e0b; /* --primary */
+  --color-signal-danger: #fb5a5a; /* red-500  */
 
   --radius-card: 12px;
   --radius-control: 8px;
 
-  /* Shadows do almost nothing on a dark ground, so cards are separated by the
-     surface step and the hairline. These stay subtle on purpose. */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -55,6 +57,15 @@
   --ease-ui: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur-fast: 0.22s;
   --dur: 0.34s;
+
+  /* Their hero panel, verbatim from the same stylesheet. */
+  --gradient-hero: linear-gradient(
+    175deg,
+    #1a2b6b 16.36%,
+    #0d58c6 33.24%,
+    #6f8bef 46.48%,
+    rgba(255, 255, 255, 0) 100%
+  );
 }
 
 /* Shape consistency lock: cards 14px, controls 10px, period chips are the one

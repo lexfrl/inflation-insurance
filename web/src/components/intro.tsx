@@ -11,18 +11,17 @@ export function Intro() {
     <section className="flex flex-col gap-10">
       <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div>
-          <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-content-100 sm:text-5xl">
-            When prices jump,
-            <br />
-            you get paid.
-          </h1>
-          <p className="mt-5 max-w-[52ch] text-[15px] leading-relaxed text-content-300 sm:text-base">
-            Cover what you spend each month. If inflation rises past the level you pick, the
-            difference lands in your wallet in USDT.
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight text-content-100">
+            Insurance, not a bet
+          </h2>
+          <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-content-300">
+            You are not guessing a number and hoping to be right. You are covering the part of a
+            price rise that comes out of your own pocket, and the payout is sized to how much it
+            actually cost you.
           </p>
           <p className="mt-4 max-w-[52ch] text-sm leading-relaxed text-content-500">
-            This is insurance, not a bet. You are not guessing a number. You are covering the
-            part of a price rise that comes out of your own pocket.
+            If prices stay calm, the cover expires unused, exactly like any other insurance you
+            have ever bought.
           </p>
         </div>
 

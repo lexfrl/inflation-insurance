@@ -18,9 +18,23 @@ const DEMO = {
 export default function LandingPage() {
   return (
     <div className="flex flex-col gap-16">
-      <Intro />
+      <section
+        className="relative overflow-hidden rounded-card px-6 py-14 text-center sm:px-10 sm:py-20"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <h1 className="mx-auto max-w-[18ch] text-3xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl">
+          When prices jump, you get paid
+        </h1>
+        <p className="mx-auto mt-5 max-w-[54ch] text-[15px] leading-relaxed text-white/80 sm:text-base">
+          Cover what you spend each month. If inflation rises past the level you pick, the
+          difference lands in your wallet in USDT.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <GetStarted />
+        </div>
+      </section>
 
-      <GetStarted />
+      <Intro />
 
       <section className="flex flex-col gap-6 border-t border-surface-700 pt-12">
         <div>
