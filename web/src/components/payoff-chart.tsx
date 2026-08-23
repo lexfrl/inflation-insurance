@@ -2,6 +2,8 @@
 
 import { useId } from "react";
 
+import { useEasedNumber } from "@/lib/useEased";
+
 /* The whole product argument in one picture.
  *
  * A binary CPI market pays a flat $1 whether inflation lands at 3.01% or 12%.
@@ -47,13 +49,23 @@ export function PayoffChart({
 }: Props) {
   const uid = useId().replace(/:/g, "");
 
+  // Dragging the slider moves the kink; easing it means the curve reads as one
+  // shape sliding rather than a stack of hard redraws.
+  const drawnStrike = useEasedNumber(strikeBps);
+
   const payoutAt = (cpiBps: number) =>
-    (Math.min(Math.max(cpiBps - strikeBps, 0), Math.max(capBps - strikeBps, 0)) * notional) / 10_000;
+    (Math.min(Math.max(cpiBps - drawnStrike, 0), Math.max(capBps - drawnStrike, 0)) * notional) / 10_000;
 
   const maxPayout = payoutAt(capBps);
-  // A strike sitting exactly at the cap makes the payout identically zero;
-  // guard the scale so the axis does not divide by zero and collapse.
-  const yMax = maxPayout > 0 ? maxPayout : 1;
+  // The y axis is scaled to the *ceiling* of this period -- what a strike of
+  // zero would pay at the cap -- and NOT to the current maxPayout. Scaling to
+  // maxPayout made the axis rescale on every slider tick, so the plateau was
+  // always pinned to the top of the frame and moving the strike appeared to
+  // do nothing except make everything jump. With a fixed ceiling, raising the
+  // strike visibly lowers the plateau, which is the whole point of the
+  // control.
+  const ceiling = (capBps * notional) / 10_000;
+  const yMax = ceiling > 0 ? ceiling : 1;
   const xMax = Math.max(capBps * 1.2, ...(buckets.length ? buckets : [capBps]), 1) * 1.05;
 
   const x = (bps: number) => PAD.l + (bps / xMax) * (W - PAD.l - PAD.r);
@@ -61,7 +73,7 @@ export function PayoffChart({
 
   const curve = [
     [x(0), y(0)],
-    [x(strikeBps), y(0)],
+    [x(drawnStrike), y(0)],
     [x(capBps), y(maxPayout)],
     [x(xMax), y(maxPayout)],
   ] as const;
@@ -141,8 +153,8 @@ export function PayoffChart({
 
         {/* Strike: the kink. Everything left of it pays nothing. */}
         <line
-          x1={x(strikeBps)}
-          x2={x(strikeBps)}
+          x1={x(drawnStrike)}
+          x2={x(drawnStrike)}
           y1={PAD.t}
           y2={H - PAD.b}
           stroke="var(--color-accent-500)"
@@ -150,11 +162,11 @@ export function PayoffChart({
           strokeDasharray="3 4"
         />
         <text
-          x={x(strikeBps) + 6}
+          x={x(drawnStrike) + 6}
           y={PAD.t + 11}
           className="fill-accent-300 font-mono text-[11px]"
         >
-          strike {(strikeBps / 100).toFixed(2)}%
+          strike {(drawnStrike / 100).toFixed(2)}%
         </text>
 
         {/* Cap: where the payout stops growing. */}

@@ -11,7 +11,7 @@ import {
 } from "wagmi";
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
 import { useDemoTarget } from "@/lib/demo-mode";
-import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
+import { formatBps, formatCountdown, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
 import { PayoffChart } from "@/components/payoff-chart";
@@ -108,6 +108,8 @@ export default function BuyerPage() {
             ))}
           </div>
 
+          {period && <PeriodStrip period={period} />}
+
           {period && effectiveSelectedPeriodId !== null && (
             <BuyForm
               periodId={effectiveSelectedPeriodId}
@@ -146,7 +148,7 @@ function BuyForm({
   const notional = parseUsdt(notionalInput);
   const capBps = Number(period.capBps);
 
-  const { data: quoteData, isFetching: quoting } = useReadContract({
+  const { data: quoteData } = useReadContract({
     address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "quote",
@@ -197,7 +199,7 @@ function BuyForm({
       {/* Chart left, ticket right: the shape of the thing you are buying and
           the price of it belong on screen together, so moving the strike
           slider visibly moves the kink in the curve. */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="border-b border-ink-700 p-5 lg:border-b-0 lg:border-r">
           <PayoffChart
             capBps={capBps}
@@ -208,9 +210,18 @@ function BuyForm({
             settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
           />
           <p className="mt-3 text-xs leading-relaxed text-paper-600">
-            Grey bars are the CPI outcomes this period is priced against, with the market&apos;s
-            probability for each. The blue line is what you receive at each outcome.
+            Bars are the CPI outcomes this period is priced against, with the probability of
+            each. The line is what you receive at that outcome.
           </p>
+
+          <div className="mt-5">
+            <ScenarioTable
+              period={period}
+              strikeBps={strikeBps}
+              notional={notional}
+              premium={premium}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-5 p-5">
@@ -252,18 +263,22 @@ function BuyForm({
           </Field>
 
           <div className="grid grid-cols-2 gap-4 rounded-control border border-ink-700 bg-ink-900 p-4">
+            {/* `loading` is gated on "no value yet", not on "a request is in
+                flight": the quote refetches on every slider tick, and
+                flashing both numbers to skeletons each time made the panel
+                strobe while dragging. */}
             <Stat
               label="Cost today"
               value={formatUsdt(premium)}
               unit="USDT"
-              loading={quoting}
+              loading={premium === undefined}
             />
             <Stat
               label="Maximum payout"
               value={formatUsdt(maxPayout)}
               unit="USDT"
               tone="accent"
-              loading={quoting}
+              loading={maxPayout === undefined}
             />
           </div>
 
@@ -332,6 +347,101 @@ function BuyForm({
         </div>
       </div>
     </Card>
+  );
+}
+
+/* What the period itself is, before any of the buying controls. Without this
+   the page opened straight onto a form with no sense of what is being bought,
+   how long it stays open, or whether anyone is backing it. */
+function PeriodStrip({ period }: { period: Period }) {
+  const now = useNow();
+  const saleLeft = Number(period.saleEnd) - now;
+  const backing = period.totalCollateral + period.totalPremiums - period.totalClaimed;
+  const soldOut = period.totalMaxLiability >= backing && backing > 0n;
+
+  return (
+    <Card className="grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
+      <Stat label="Buying closes in" value={formatCountdown(saleLeft)} />
+      <Stat label="Covers inflation up to" value={formatBps(period.capBps)} />
+      <Stat label="Backed by" value={formatUsdt(backing)} unit="USDT" tone="accent" />
+      <Stat
+        label="Cover already sold"
+        value={formatUsdt(period.totalMaxLiability)}
+        unit="USDT"
+        tone={soldOut ? "positive" : "default"}
+      />
+    </Card>
+  );
+}
+
+/* The payoff curve says what the shape is; this says what it means in money.
+   Every row is one of the CPI outcomes the period is actually priced against,
+   so the reader sees the probability, the payout, and whether that leaves
+   them ahead of the premium -- which is the question they are really asking. */
+function ScenarioTable({
+  period,
+  strikeBps,
+  notional,
+  premium,
+}: {
+  period: Period;
+  strikeBps: number;
+  notional: bigint;
+  premium: bigint | undefined;
+}) {
+  const capBps = Number(period.capBps);
+  const rows = period.cpiBucketsBps.map((bucket, i) => {
+    const cpi = Number(bucket);
+    const covered = Math.min(Math.max(cpi - strikeBps, 0), Math.max(capBps - strikeBps, 0));
+    // Same arithmetic the contract uses, in the same 6-decimal base units, so
+    // rounding matches what `claim()` would actually pay.
+    const payout = (notional * BigInt(covered)) / 10_000n;
+    const net = premium === undefined ? undefined : payout - premium;
+    return { cpi, prob: Number(period.probBps[i] ?? 0), payout, net };
+  });
+
+  return (
+    <div>
+      <div className="mb-2 text-sm font-medium text-paper-300">If inflation comes in at</div>
+      <div className="overflow-hidden rounded-control border border-ink-700">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-ink-800 text-[11px] uppercase tracking-[0.06em] text-paper-600">
+              <th className="px-3 py-2 text-left font-medium">CPI</th>
+              <th className="px-3 py-2 text-right font-medium">Chance</th>
+              <th className="px-3 py-2 text-right font-medium">You get</th>
+              <th className="px-3 py-2 text-right font-medium">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.cpi} className="border-t border-ink-700">
+                <td className="px-3 py-2 font-mono text-paper-100 tnum">{formatBps(r.cpi)}</td>
+                <td className="px-3 py-2 text-right font-mono text-paper-500 tnum">
+                  {formatBps(r.prob, 0)}
+                </td>
+                <td className="px-3 py-2 text-right font-mono tnum text-paper-100">
+                  {formatUsdt(r.payout)}
+                </td>
+                <td
+                  className={`px-3 py-2 text-right font-mono tnum ${
+                    r.net === undefined
+                      ? "text-paper-600"
+                      : r.net > 0n
+                        ? "text-signal-positive"
+                        : "text-paper-500"
+                  }`}
+                >
+                  {r.net === undefined
+                    ? "-"
+                    : `${r.net > 0n ? "+" : ""}${formatUsdt(r.net)}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
