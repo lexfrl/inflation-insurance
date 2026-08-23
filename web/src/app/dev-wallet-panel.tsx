@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { LOCAL_TEST_ACCOUNTS, isLocalDev } from "@/lib/wagmi";
 import { setDemoModeEnabled, useDemoModeEnabled } from "@/lib/demo-mode";
@@ -23,6 +24,9 @@ export function DevWalletPanel() {
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const demoModeEnabled = useDemoModeEnabled();
+  // Collapsed by default: this is developer plumbing, and a loud amber band
+  // across the top of every screen is the first thing a demo audience sees.
+  const [open, setOpen] = useState(false);
 
   const toggleDemoMode = (enabled: boolean) => {
     // A wallet connected under the old target (e.g. a real wallet on Base
@@ -38,11 +42,11 @@ export function DevWalletPanel() {
 
   if (!showPanel) {
     return (
-      <div className="border-b border-neutral-800 px-6 py-1.5">
-        <div className="mx-auto flex max-w-3xl justify-end">
+      <div className="border-b border-surface-700 px-5 py-1.5">
+        <div className="mx-auto flex max-w-6xl justify-end">
           <button
             onClick={() => toggleDemoMode(true)}
-            className="text-[11px] text-neutral-600 hover:text-neutral-400"
+            className="text-[11px] text-content-600 hover:text-content-300"
           >
             Enable local demo mode
           </button>
@@ -65,10 +69,25 @@ export function DevWalletPanel() {
   // it.
   const reconnecting = status === "reconnecting";
 
+  if (!open) {
+    return (
+      <div className="border-b border-surface-700 bg-surface-900 px-5 py-1.5">
+        <div className="mx-auto flex max-w-6xl justify-end">
+          <button
+            onClick={() => setOpen(true)}
+            className="text-[11px] text-content-600 transition-colors hover:text-content-300"
+          >
+            Dev wallets{reconnecting ? " (reconnecting)" : ""}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-2">
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-amber-400">
+    <div className="border-b border-surface-700 bg-surface-800 px-5 py-2">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-xs">
+        <span className="font-medium text-content-500">
           {isLocalDev ? "Local test wallets (anvil only)" : "Demo mode: local anvil test wallets"}
           {reconnecting && " (reconnecting...)"}:
         </span>
@@ -82,7 +101,7 @@ export function DevWalletPanel() {
               disabled={isPending || isActive || reconnecting}
               onClick={() => connect({ connector })}
               className={`rounded-full px-3 py-1 ${
-                isActive ? "bg-amber-500 text-black" : "bg-black/30 text-amber-200 hover:bg-black/50"
+                isActive ? "bg-accent-400 text-surface-950" : "bg-surface-850 text-content-300 hover:bg-surface-700"
               }`}
             >
               {account.label}
@@ -90,14 +109,20 @@ export function DevWalletPanel() {
           );
         })}
         {isConnected && (
-          <button onClick={() => disconnect()} className="rounded-full bg-black/30 px-3 py-1 text-amber-200 hover:bg-black/50">
+          <button onClick={() => disconnect()} className="rounded-full bg-surface-850 px-3 py-1 text-content-300 hover:bg-surface-700">
             Disconnect
           </button>
         )}
+        <button
+          onClick={() => setOpen(false)}
+          className="ml-auto rounded-full px-3 py-1 text-content-500 hover:text-content-100"
+        >
+          Hide
+        </button>
         {!isLocalDev && (
           <button
             onClick={() => toggleDemoMode(false)}
-            className="ml-auto rounded-full px-3 py-1 text-amber-200/60 hover:text-amber-200"
+            className="rounded-full px-3 py-1 text-content-500 hover:text-content-100"
           >
             Exit demo mode
           </button>

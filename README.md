@@ -1,9 +1,9 @@
-# IPC Shield
+# Hedgy
 
 Built at **Aleph Hackathon — Buenos Aires, August 2026**.
 
 **Repo:** https://github.com/lexfrl/inflation-insurance
-**Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; contract addresses below are placeholders until the Base Sepolia deploy runs, so on-chain reads will show empty until then)
+**Live frontend:** https://inflation-insurance.vercel.app (auto-deploys on every push to `main`; now pointed at the live Base Sepolia deployment below)
 
 Self-custodial inflation protection for LATAM, settled in USDT against
 official CPI data. You tell it how much monthly spending to protect and
@@ -52,7 +52,7 @@ primitive; this is the insurance product built on top of it.
 
 And a fifth framing, for judges evaluating social impact: inflation is
 effectively an unpredictable tax on households. Sophisticated investors have
-derivatives to manage macro risk; ordinary consumers don't. IPC Shield makes
+derivatives to manage macro risk; ordinary consumers don't. Hedgy makes
 inflation protection accessible with a few dollars of USDT — turning a
 financial instrument normally available to institutions into a consumer
 financial-resilience product.
@@ -374,9 +374,10 @@ contracts/          Foundry project
   script/Demo.s.sol        3-phase real-broadcast lifecycle demo
   script/demo.sh           orchestrates the 3 phases with real wall-clock waits
 web/               Next.js + wagmi/viem + RainbowKit frontend
-  src/app/page.tsx       buyer flow (protect spending)
-  src/app/lp/page.tsx    LP flow (provide liquidity)
-  src/app/admin/page.tsx owner-only: create periods, post settlements
+  src/app/page.tsx         landing / dashboard
+  src/app/protect/page.tsx buyer flow (protect spending)
+  src/app/earn/page.tsx    LP flow (provide liquidity, deploy idle to Morpho)
+  src/app/admin/page.tsx   owner-only: periods, settlements, yield venue
 ```
 
 ## Running it
@@ -453,9 +454,41 @@ script/Deploy.s.sol --broadcast` any time:
 | InflationHedge   | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
 | MockYieldVault   | `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0` |
 
-**Base Sepolia** (chain id `84532`) — _pending a funded deployer key,
-see below._ The live Vercel frontend currently points at placeholder
-addresses (`0x0...dEaD`) on this chain until that deploy runs.
+**Base Sepolia** (chain id `84532`, rpc `https://sepolia.base.org`) — live,
+and what the Vercel frontend points at:
+
+| Contract        | Address |
+|------------------|---------|
+| MockUSDT         | `0xB3c611e5FcEc0BfB2Bd1038C5dd58B5F7E47909e` |
+| InflationHedge   | `0x40FCD288A719dA8ed591819fE2c3F8689a947A63` |
+
+> **This deployment predates the yield vault and needs re-running.**
+> `Period` gained four fields, and the older struct is shorter than the
+> current decoder expects — so `listPeriods()` against this address does not
+> fail, it silently returns adjacent memory as vault figures. The `earn` page
+> detects this (the `vaultValue` read reverts on a build that has no such
+> function) and hides the vault UI rather than rendering numbers it knows are
+> wrong, so nothing breaks in the meantime. To turn the feature on here:
+> re-run `Deploy.s.sol`, point `setVault` at a vault, and update the
+> addresses above.
+
+Two periods are open for the live demo (owner = `0xF204c021f57A12EaBD8a022dDC4a654cf4403974`):
+
+| Period ID | Label | State |
+|---|---|---|
+| `0` | Argentina CPI, Sep 2026 | Seeded with 10,000 mUSDT of LP collateral — buyers can `buyPolicy` immediately (`quote(0, 1000e6, 300)` → premium 16.80 / maxPayout 50.00 USDT, matching the walkthrough above) |
+| `1` | Argentina CPI, Oct 2026 (LP demo) | Virgin, zero deposits — for demoing `deposit()` live, since a period's LP door closes for good after its first policy sale |
+
+Both periods: 14-day sale window, 21-day period, 7-day claim window after
+settlement, so they stay open through judging.
+
+Demo accounts (testnet-only, MockUSDT is open-mint so anyone can top up):
+
+| Role | Address | Funded with |
+|---|---|---|
+| Owner / admin | `0xF204c021f57A12EaBD8a022dDC4a654cf4403974` | ETH for gas; creates periods, posts settlements |
+| LP demo | `0xF9F4e16a1717cb7c958d7Cc4599eD143174eC453` | 0.01 ETH + 5,000 mUSDT, for the `deposit()` flow on period 1 |
+| Buyer demo | `0xdE223E8922A5C1bb03C02861AD6024EcB117Ba4e` | 0.01 ETH + 2,000 mUSDT, for the `buyPolicy()`/`claim()` flow on period 0 |
 
 ## CI/CD
 
@@ -485,7 +518,7 @@ addresses (`0x0...dEaD`) on this chain until that deploy runs.
 - [x] GitHub repo, CI, and Vercel auto-deploy for the frontend
 - [x] Idle LP liquidity deployed to an ERC-4626 (Morpho) vault, with the
       buyer-liquidity invariant and a real Base-mainnet fork test
-- [ ] Base Sepolia deployment — blocked on a funded deployer key
+- [x] Base Sepolia deployment — live, with seeded demo accounts (see "Deployed addresses")
 - [ ] Real Tether WDK wallet integration (connect, balance, signed txs)
 - [ ] Payoff curve + pricing/EV breakdown in the buyer UI
 - [ ] Live demo video
