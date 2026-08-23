@@ -79,6 +79,67 @@ This is also the **single source of truth** for pricing: the frontend never
 recomputes premium/payout in JavaScript, it only ever displays what
 `quote()` returns on-chain.
 
+### The exact formulas
+
+All amounts below are in bps (`BPS_DENOM = 10000`, so 1 bps = 0.01%) unless
+stated otherwise. `excess()` is the one payoff shape shared by pricing
+(`quote`) and settlement (`claim`), so they can never disagree:
+
+```
+excess(cpi, strike, cap) = max(min(cpi, cap) − strike, 0)
+```
+
+**Buyer — quote (`quote(periodId, notional, strikeBps)`):**
+
+```
+maxPayout = notional × (cap − strike) / 10000
+
+// EV, summed over the period's CPI histogram (cpiBucketsBps / probBps)
+EV = Σ prob[i] × excess(bucket[i], strike, cap)
+
+premium = notional × EV × loadBps / 10000⁴
+```
+
+`quote()` reverts if `premium >= maxPayout` — an unpriceable policy.
+`loadBps` (e.g. `12000` = 1.2×) is the markup over fair value; at
+`premium == EV` exactly, LPs have zero expected return and no reason to
+deposit.
+
+**Buyer — payout (`claim`, once the period settles at `settlementCpiBps`):**
+
+```
+payout = notional × excess(settlementCpi, strike, cap) / 10000
+```
+
+Same `excess()` as pricing: CPI at or below strike pays 0; at or above cap,
+payout is capped at `notional × (cap − strike)`.
+
+**LP — deposit** (only while `totalMaxLiability == 0` for the period — see
+"LP fairness" below, this closes for good the moment the first policy in
+the period sells):
+
+```
+shares[lp] += amount        -- 1:1, minted at par against pure LP capital
+```
+
+**LP — share of pool** (what the buyer/LP/Stats pages display):
+
+```
+shareOfPool = shares[lp] / totalShares
+```
+
+**LP — withdraw** (only after the period's `claimDeadline` has passed):
+
+```
+remaining = totalCollateral + totalPremiums − totalClaimed
+payout    = remaining × shares[lp] / totalShares
+```
+
+An LP's return is their pro-rata share of *(what they deposited) + (all
+premiums collected) − (all payouts claimed)*. `shares[lp]` is never zeroed
+on withdrawal — only a separate `withdrawn` flag flips — so a deposit's
+history stays readable after the fact.
+
 ## Architecture
 
 Three roles share one pool per period — nobody but the buyer ever sees a
