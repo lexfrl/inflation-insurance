@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Hedgy design tokens. A light dashboard, following the Truflation reference.
+/* Hedgy design tokens. A dark dashboard, following the Truflation reference.
    One accent for the whole product -- the payoff curve, primary buttons, focus
    rings and selected states all draw from it, and nothing else introduces a
    second hue. Semantic colors exist only for states that genuinely mean
@@ -15,43 +15,40 @@
 }
 
 @theme {
-  /* Light dashboard palette, following the Truflation reference: a very light
-     page, white cards lifted by a soft shadow and a hairline rather than by
-     heavy borders, one blue accent, and green/red reserved strictly for
-     movement in a number. */
+  /* Dark dashboard palette, following the Truflation reference. Deep navy
+     page, cards a step up from it with a visible hairline, one blue accent,
+     and green/red reserved strictly for a number that moved. */
 
-  /* Surfaces. `surface-950` is the colour that sits ON the accent, which in a
-     light theme means white. */
+  /* `surface-950` is what sits ON the accent, which stays white here. */
   --color-surface-950: #ffffff;
-  --color-surface-900: #f6f7f9;
-  --color-surface-850: #ffffff;
-  --color-surface-800: #eef1f6;
-  --color-surface-700: #e4e8ef;
-  --color-surface-600: #cfd6e2;
+  --color-surface-900: #0d1220;
+  --color-surface-850: #151b2b;
+  --color-surface-800: #1e2536;
+  --color-surface-700: #262f42;
+  --color-surface-600: #36415a;
 
-  /* Text ramp, four steps. */
-  --color-content-100: #0d1220;
-  --color-content-300: #464f66;
-  --color-content-500: #6a7387;
-  --color-content-600: #8a92a4;
+  --color-content-100: #e8edf5;
+  --color-content-300: #9aa7bd;
+  --color-content-500: #6f7d94;
+  --color-content-600: #56637a;
 
-  /* One accent. 300 is the light tint used for fills, 500/600 darken for
-     hover and pressed states -- on a light background a hover has to go
-     darker, not lighter. */
-  --color-accent-300: #7c93ff;
-  --color-accent-400: #3b5bf5;
-  --color-accent-500: #2c46d4;
-  --color-accent-600: #1f34a8;
+  /* On a dark page a hover goes lighter, the opposite of the light theme. */
+  --color-accent-300: #7ea2ff;
+  --color-accent-400: #4f7dff;
+  --color-accent-500: #3b63e0;
+  --color-accent-600: #2c4bb5;
 
-  --color-signal-positive: #12a150;
-  --color-signal-warning: #c2710a;
-  --color-signal-danger: #d6403a;
+  --color-signal-positive: #3fd07f;
+  --color-signal-warning: #e3a047;
+  --color-signal-danger: #f2555a;
 
   --radius-card: 12px;
   --radius-control: 8px;
 
-  --shadow-card: 0 1px 2px rgba(13, 18, 32, 0.04), 0 4px 12px rgba(13, 18, 32, 0.05);
-  --shadow-raised: 0 2px 6px rgba(13, 18, 32, 0.06), 0 12px 28px rgba(13, 18, 32, 0.08);
+  /* Shadows do almost nothing on a dark ground, so cards are separated by the
+     surface step and the hairline. These stay subtle on purpose. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 :root {

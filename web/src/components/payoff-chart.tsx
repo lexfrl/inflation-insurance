@@ -35,7 +35,7 @@ type Props = {
 };
 
 const W = 680;
-const H = 300;
+const H = 360;
 const PAD = { l: 58, r: 18, t: 30, b: 48 };
 
 export function PayoffChart({

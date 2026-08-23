@@ -195,36 +195,30 @@ function BuyForm({
   }, [buyReceipt.isSuccess]);
 
   return (
-    <Card>
-      {/* Chart left, ticket right: the shape of the thing you are buying and
-          the price of it belong on screen together, so moving the strike
-          slider visibly moves the kink in the curve. */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="border-b border-surface-700 p-5 lg:border-b-0 lg:border-r">
-          <PayoffChart
-            capBps={capBps}
-            strikeBps={strikeBps}
-            notional={Number(notional) / 1_000_000}
-            buckets={period.cpiBucketsBps.map(Number)}
-            probs={period.probBps.map(Number)}
-            settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
-          />
-          <p className="mt-3 text-xs leading-relaxed text-content-600">
-            Bars show where inflation is expected to land, and how likely each outcome is. The
-            line is what you receive if it lands there.
-          </p>
-
-          <div className="mt-5">
-            <ScenarioTable
-              period={period}
-              strikeBps={strikeBps}
-              notional={notional}
-              premium={premium}
-            />
+    /* Summary and controls in a narrow left column, the chart given the rest
+       of the width: the reference layout, and the right one here too, because
+       the headline number and the shape it comes from need to be read
+       together while the slider moves. */
+    <div className="grid gap-4 lg:grid-cols-[330px_minmax(0,1fr)]">
+      <div className="flex flex-col gap-4">
+        <Card className="flex flex-col gap-5 p-5">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-content-600">
+              Cost today
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-4xl leading-none text-content-100 tnum">
+                {premium === undefined ? "--" : formatUsdt(premium)}
+              </span>
+              <span className="text-sm text-content-500">USDT</span>
+            </div>
+            <div className="mt-2 text-sm text-content-300">
+              Pays up to{" "}
+              <span className="font-mono text-accent-300 tnum">
+                {maxPayout === undefined ? "--" : formatUsdt(maxPayout)} USDT
+              </span>
+            </div>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-5 p-5">
           <Field
             label="Monthly spending to protect"
             hint="Your payout scales with this amount."
@@ -261,26 +255,6 @@ function BuyForm({
               aria-label="Inflation level to cover above"
             />
           </Field>
-
-          <div className="grid grid-cols-2 gap-4 rounded-control border border-surface-700 bg-surface-800 p-4">
-            {/* `loading` is gated on "no value yet", not on "a request is in
-                flight": the quote refetches on every slider tick, and
-                flashing both numbers to skeletons each time made the panel
-                strobe while dragging. */}
-            <Stat
-              label="Cost today"
-              value={formatUsdt(premium)}
-              unit="USDT"
-              loading={premium === undefined}
-            />
-            <Stat
-              label="Maximum payout"
-              value={formatUsdt(maxPayout)}
-              unit="USDT"
-              tone="accent"
-              loading={maxPayout === undefined}
-            />
-          </div>
 
           <div className="mt-auto flex flex-col gap-3">
             {!isConnected ? (
@@ -344,8 +318,81 @@ function BuyForm({
               </Callout>
             )}
           </div>
-        </div>
+        </Card>
+
+        <QuickFacts period={period} />
       </div>
+
+      <div className="flex flex-col gap-4">
+        <Card className="p-5">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-medium text-content-100">
+              What you receive, at every level of inflation
+            </h3>
+            <span className="rounded-control border border-surface-700 bg-surface-800 px-2.5 py-1 text-[11px] text-content-500">
+              Cover above {formatBps(strikeBps)}
+            </span>
+          </div>
+          <PayoffChart
+            capBps={capBps}
+            strikeBps={strikeBps}
+            notional={Number(notional) / 1_000_000}
+            buckets={period.cpiBucketsBps.map(Number)}
+            probs={period.probBps.map(Number)}
+            settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
+          />
+          <p className="mt-3 text-xs leading-relaxed text-content-600">
+            Bars show where inflation is expected to land, and how likely each outcome is. The
+            line is what you receive if it lands there.
+          </p>
+        </Card>
+
+        <Card className="p-5">
+          <ScenarioTable
+            period={period}
+            strikeBps={strikeBps}
+            notional={notional}
+            premium={premium}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* The reference's "Quick Facts" panel: the terms of the thing you are looking
+   at, stated plainly, straight from the period on-chain. */
+function QuickFacts({ period }: { period: Period }) {
+  const now = useNow();
+  const facts: [string, string][] = [
+    ["Period", period.label],
+    ["Covers inflation up to", formatBps(period.capBps)],
+    ["Buying closes in", formatCountdown(Number(period.saleEnd) - now)],
+    ["Period ends in", formatCountdown(Number(period.periodEnd) - now)],
+    ["Outcomes priced", String(period.cpiBucketsBps.length)],
+    ["Pricing load", `${(Number(period.loadBps) / 10_000).toFixed(2)}x expected value`],
+    [
+      "Settlement",
+      period.settled ? `${formatBps(period.settlementCpiBps)} posted` : "Awaiting the official figure",
+    ],
+  ];
+
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-medium text-content-100">Quick facts</h3>
+      <dl className="mt-3">
+        {facts.map(([k, v], i) => (
+          <div
+            key={k}
+            className={`flex items-baseline justify-between gap-4 py-2.5 text-sm ${
+              i > 0 ? "border-t border-surface-700" : ""
+            }`}
+          >
+            <dt className="text-content-500">{k}</dt>
+            <dd className="text-right font-mono text-content-100 tnum">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </Card>
   );
 }
