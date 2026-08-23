@@ -21,20 +21,26 @@ market — the question really is just "did it happen?" — but it's a bad hedge
 your real-world damage from inflation keeps growing past the threshold while
 the payout doesn't.
 
-This product pays out **proportionally to the shock**, capped:
+This product pays out **proportionally to the shock**, capped. Worked
+example: strike = 3%, cap = 8%, notional = $1,000.
 
-```
-strike = 3%, cap = 8%, notional = $1,000
-
-CPI 2%   -> payout $0
-CPI 3%   -> payout $0
-CPI 4%   -> payout $10
-CPI 5%   -> payout $20
-CPI 6%   -> payout $30
-CPI 8%+  -> payout $50   (capped)
-```
+| CPI (official print) | Payout | LP collateral reserved |
+| --- | --- | --- |
+| 2% | $0 | $50 |
+| 3% | $0 | $50 |
+| 4% | $10 | $50 |
+| 5% | $20 | $50 |
+| 6% | $30 | $50 |
+| 8%+ | $50 (capped) | $50 |
 
 `payout = notional × clamp(CPI − strike, 0, cap − strike)`
+
+The **collateral reserved is fixed at $50 the moment the policy is bought**
+— the pool has to hold enough to cover the worst case (CPI at or above the
+cap) from day one, regardless of what CPI actually turns out to be at
+settlement. A 2% print pays $0 and the LP keeps the premium; a 5% print
+pays $20 out of that same $50 reserve. See "How much LP collateral does a
+policy need?" below for the general formula.
 
 You could approximate this today by manually buying five separate CPI-tier
 markets on Polymarket. We package that payoff into one product: choose your
