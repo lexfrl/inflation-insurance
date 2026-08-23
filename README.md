@@ -63,6 +63,46 @@ inflation protection accessible with a few dollars of USDT — turning a
 financial instrument normally available to institutions into a consumer
 financial-resilience product.
 
+## Who uses this
+
+Three roles, three pages — the same three roles "Architecture" describes
+on-chain, seen from the real-world side instead of the contract side.
+
+- **Buyers** are everyday people protecting monthly spending against an
+  inflation shock — the LATAM household audience the fifth framing above
+  describes, not derivatives traders. They pick a period, tell the app how
+  much spending to protect and above what CPI level, pay the quoted
+  premium, and later claim if settlement clears their strike. Product
+  surface: `/protect` ("Buy cover"), plus `/` and `/v2` ("How it works" /
+  "Simple view") — two depths of the same pitch, both funneling into
+  `/protect` to complete the purchase. See "Architecture" for what
+  `buyPolicy()` / `claim()` actually do on-chain.
+- **LPs (liquidity providers)** are the other side of the trade: capital
+  providers underwriting inflation risk for premium income, the same role
+  an LP plays in a lending pool or AMM, except the asset they're
+  underwriting is a macro index instead of a trading pair. They deposit
+  USDT into a period before its first policy sells, then withdraw their
+  pro-rata share of collateral + premiums − claims once the claim window
+  closes. Product surface: `/earn`. See "Architecture" for `deposit()` /
+  `withdraw()` and the LP-fairness guard that closes deposits at the first
+  sale.
+- **The Operator** is the V1 trust root, not a customer persona: creates
+  each period's terms and CPI-outcome histogram, then posts the single
+  settled CPI value every policy in that period pays out against. Today
+  that's one centralized address — literally this team's demo/hackathon
+  operator, not a decentralized or third-party role yet (see "What's V1").
+  Product surface: `/admin` ("Operator").
+
+Two pages don't map to a single role above: `/profile` ("Dashboard") is any
+connected wallet's own positions — a buyer's policies, an LP's deposits, or
+both — and `/stats` is a read-only, protocol-wide view of every period's
+LPs and policies at once, for anyone who wants to see the whole pool's
+state rather than just their own wallet's slice.
+
+"Deployed addresses" below lists three demo accounts already funded on
+Base Sepolia — one per role above — so you can act as a buyer, an LP, or
+the operator without setting up your own wallet.
+
 ## How it's priced (the actual differentiator)
 
 Polymarket prices one event: `P(CPI > 3%)`. This contract prices the whole
@@ -385,6 +425,104 @@ DAO, liquidity mining. Every one of these trades demo reliability this close
 to submission for surface area that doesn't move any of the judging
 narratives above.
 
+## Design notes: toward market-driven pricing
+
+Written down while thinking through what "more market-driven" would
+actually take — not a commitment, just the reasoning made explicit instead
+of staying in someone's head. Two questions, and they turn out to be the
+same unsolved problem viewed from two angles.
+
+### Why is the histogram fixed at all?
+
+Two reasons, one practical and one product-shaped:
+
+- **Nothing to aggregate from yet.** A market-driven price needs an actual
+  market to derive it from — there's no liquid Argentina-CPI-bucket market
+  to pull live odds from today. `IInflationOracle.sol` is already scaffolded
+  for pulling from one once it exists (see "What's V1"); V1 seeds the
+  distribution from the operator's own read of recent INDEC prints instead
+  of pretending a market exists where it doesn't.
+- **Insurance vs. a tradeable position are different products.** Real
+  insurance is priced once at issuance and held to term — the buyer isn't
+  meant to watch it mark-to-market. A prediction market is the opposite:
+  price discovery *is* the product. V1 deliberately picks the insurance
+  side of that fork for the buyer-facing surface (see "Who uses this").
+
+### A stale histogram is a solvency risk, not just a sales problem
+
+If the histogram *overstates* real risk, premiums come out too high and
+buyers walk away — benign, no sales. If it *understates* real risk,
+`quote()` underprices the policy relative to true probability, and a buyer
+with better information doesn't walk away — they buy more, at a discount,
+against LPs who don't know they're on the wrong side of it. "Nobody buys"
+is the safe failure mode; a cheap, wrong-direction offer sitting open for
+someone to pick off is the dangerous one. This is the real argument for
+feeding pricing from something live, not just a conversion-rate argument.
+
+### Directions that would actually make it market-driven
+
+- **Feed the histogram from a live market** instead of an operator
+  snapshot — the V2 seam already sketched in "What's V1," via
+  `IInflationOracle`.
+- **LMSR/AMM pricing** (Augur/Gnosis-style): buyers' own purchases shift the
+  implied distribution instead of an operator setting it once. Needs
+  subsidized bootstrap liquidity to not be gameable while thin — same
+  cold-start problem as the point above, just moved from "who feeds the
+  oracle" to "who seeds the AMM."
+- **Rolling/continuous periods** instead of one histogram frozen for the
+  whole sale window — a fresh period spun up every few days, each pulling a
+  new snapshot. Cheaper than live repricing, coarser.
+- **Secondary market for policies** (tokenize as ERC-721/1155, already
+  listed as "deliberately not built" above) — lets a buyer exit before
+  settlement instead of being stuck, independent of whether the *initial*
+  pricing was operator-set or AMM-driven.
+- **Decentralize updating the histogram, not just setting it** — a
+  Schelling-point/UMA-style dispute process or stake-weighted update partway
+  between "operator sets it once" and "full AMM."
+
+None of these are free: the first two both hit the same bootstrap problem
+from different angles (needing either a live market to read from, or
+seeded AMM liquidity to not be gameable while thin), and pushing toward a
+genuinely tradeable instrument trades away the "buy once, forget it" UX the
+buyer persona (see "Who uses this") is explicitly designed around. A real
+build would likely split by surface — `/protect` stays fixed-and-simple, a
+separate surface exposes the tradeable version to whoever wants it —
+rather than trying to make one product do both.
+
+### Can an existing buyer refinance?
+
+Not today, and it's structural, not an oversight: a `Policy` is immutable
+and non-transferable once bought — `buyPolicy()` freezes
+notional/strike/maxPayout/premium, and the only thing that happens to it
+again is `claim()` after settlement.
+
+Real-world refinancing (a mortgage, continuous-coverage insurance) relies
+on an unearned-premium concept — a decaying balance or a pro-rata unused
+portion to hand back on cancellation. A Hedgy policy isn't continuous
+coverage decaying over time; it's a single bet on one terminal settlement
+event, so there's no "unused portion" — the whole premium's value is tied
+to a snapshot that hasn't happened yet. "Refinance" here would really mean
+exit the current position at its current value, then re-enter at current
+terms — two ways that could work:
+
+- **Secondary market (peer-to-peer):** sell the tokenized policy to
+  whoever wants that exposure, at whatever price the two of you agree on;
+  use the proceeds to buy a fresh policy. The protocol doesn't need to know
+  "fair value" — the market sets it, and the repricing risk sits with the
+  counterparties, not the LP pool.
+- **Protocol-native surrender:** the contract re-runs the EV math against
+  the *current* histogram to compute what the remaining position is worth
+  today, buys it back out of the pool, and closes it in one transaction. No
+  counterparty needed, but now the LP pool is pricing time/volatility risk
+  on early exits, not just terminal payout.
+
+The surrender path needs the exact same thing as market-driven pricing
+above — a live, trustworthy way to reprice a position. You can't compute a
+fair buyback value off a stale operator histogram any more than you can
+price a fresh policy off one. New-buyer pricing and existing-holder
+refinancing are the same unsolved problem wearing two hats: solve live
+repricing once, and both fall out of it.
+
 ## Repo layout
 
 ```
@@ -397,9 +535,17 @@ contracts/          Foundry project
   script/Demo.s.sol        3-phase real-broadcast lifecycle demo
   script/demo.sh           orchestrates the 3 phases with real wall-clock waits
 web/               Next.js + wagmi/viem + RainbowKit frontend
-  src/app/page.tsx       buyer flow (protect spending)
-  src/app/lp/page.tsx    LP flow (provide liquidity)
-  src/app/admin/page.tsx owner-only: create periods, post settlements
+  src/app/page.tsx         "How it works": reference dashboard, live
+                            contract data + market-narrative demo widgets
+  src/app/v2/page.tsx      "Simple view": a plainer buyer-facing pitch
+  src/app/profile/page.tsx "Dashboard": a connected wallet's own
+                            policies/positions (buyer, LP, or both)
+  src/app/protect/page.tsx "Buy cover": the buyer flow — quote, buy, claim
+  src/app/earn/page.tsx    "Earn": the LP flow — deposit, withdraw
+  src/app/stats/page.tsx   "Stats": protocol-wide view, every period's
+                            LPs and policies, not scoped to one wallet
+  src/app/admin/page.tsx   "Operator": owner-only, create periods, post
+                            settlements
 ```
 
 ## Running it
