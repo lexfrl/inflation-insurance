@@ -1,12 +1,11 @@
 @import "tailwindcss";
 
-/* Hedgy design tokens.
-   Fixed dark theme (see the note at the bottom of this file for why there is
-   no unlayered `body` rule). One accent for the whole product: `celeste`, the
-   Argentine sky blue -- the payoff curve, primary buttons, focus rings and
+/* Hedgy design tokens, derived from SolPump's own token layer so the two
+   products read as one house style. Fixed dark theme (see the note at the
+   bottom of this file for why there is no unlayered `body` rule). One accent
+   for the whole product -- the payoff curve, primary buttons, focus rings and
    selected states all draw from it, and nothing else introduces a second hue.
-   Semantic colors (positive / warning / danger) exist only for states that
-   genuinely mean something, never for decoration. */
+   Semantic colors exist only for states that genuinely mean something. */
 /* `inline` matters for these two: the values are CSS vars defined on <html>
    by next/font, and inlining is what the original file did for the same
    reason. Colors and radii below are plain values, so they use a normal
@@ -17,34 +16,51 @@
 }
 
 @theme {
+  /* Palette lifted from SolPump's token layer (frontend/src/assets/css/main.css)
+     so the two products read as the same house. Its rules, kept intact:
+     surfaces step UP in lightness rather than glowing, depth comes from that
+     step plus a hairline border, and there is exactly one accent, spent
+     carefully. */
 
-  /* Surfaces: cold near-black, never pure #000 -- pure black flattens depth. */
-  --color-ink-950: #080b10;
-  --color-ink-900: #0b0f14;
-  --color-ink-850: #10151d;
-  --color-ink-800: #151c26;
-  --color-ink-700: #1e2734;
-  --color-ink-600: #2a3646;
+  /* Surfaces. */
+  --color-ink-950: #050505;
+  --color-ink-900: #070708;
+  --color-ink-850: #0d0d0f;
+  --color-ink-800: #1a1a1e;
+  /* The two "ink" steps used as borders are translucent white on purpose:
+     that hairline is the signature of the SolPump surface treatment. */
+  --color-ink-700: rgba(255, 255, 255, 0.09);
+  --color-ink-600: rgba(255, 255, 255, 0.16);
 
-  /* Text */
-  --color-paper-100: #e9eef4;
-  --color-paper-300: #b3c0cf;
-  --color-paper-500: #7d8b9f;
-  --color-paper-600: #6b7a8d;
+  /* Text ramp, four steps so hierarchy is a decision and not a guess. */
+  --color-paper-100: #f4f4f5;
+  --color-paper-300: #a1a1aa;
+  --color-paper-500: #6b6b74;
+  --color-paper-600: #5b5b63;
 
-  /* Accent: celeste. */
-  --color-celeste-300: #8fc7f0;
-  --color-celeste-400: #62aae4;
-  --color-celeste-500: #3d8fd4;
-  --color-celeste-600: #2a72b0;
+  /* The one accent: acid lime. Anything sitting on it uses ink-950. */
+  --color-accent-300: #e2ff4a;
+  --color-accent-400: #d4f512;
+  --color-accent-500: #b5d40a;
+  --color-accent-600: #8fa808;
 
-  /* Semantic state only. */
-  --color-signal-positive: #4ec9a5;
-  --color-signal-warning: #e0a458;
-  --color-signal-danger: #e0685f;
+  /* Semantic state only. Orange is what the settled-CPI marker uses, so it
+     stays legible against a lime payoff curve. */
+  --color-signal-positive: #d4f512;
+  --color-signal-warning: #ff6b00;
+  --color-signal-danger: #ff3b4e;
 
-  --radius-card: 14px;
-  --radius-control: 10px;
+  /* Radii from SolPump's scale (8 / 12 / 16 / 20), well down from pills. */
+  --radius-card: 12px;
+  --radius-control: 8px;
+}
+
+/* SolPump's motion tokens: 0.15s `ease` barely decelerates and lands hard, so
+   every transition here shares one soft finish and one place to tune it. */
+:root {
+  --ease-ui: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 0.22s;
+  --dur: 0.34s;
 }
 
 /* Shape consistency lock: cards 14px, controls 10px, period chips are the one
@@ -59,7 +75,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-celeste-400);
+    outline: 2px solid var(--color-accent-400);
     outline-offset: 2px;
   }
 
@@ -89,18 +105,18 @@
     height: 18px;
     width: 18px;
     border-radius: 999px;
-    background: var(--color-celeste-400);
+    background: var(--color-accent-400);
     border: 3px solid var(--color-ink-900);
-    box-shadow: 0 0 0 1px var(--color-celeste-600);
+    box-shadow: 0 0 0 1px var(--color-accent-600);
     transition: transform 120ms ease;
   }
   input[type="range"]::-moz-range-thumb {
     height: 18px;
     width: 18px;
     border-radius: 999px;
-    background: var(--color-celeste-400);
+    background: var(--color-accent-400);
     border: 3px solid var(--color-ink-900);
-    box-shadow: 0 0 0 1px var(--color-celeste-600);
+    box-shadow: 0 0 0 1px var(--color-accent-600);
   }
   input[type="range"]:active::-webkit-slider-thumb {
     transform: scale(0.92);

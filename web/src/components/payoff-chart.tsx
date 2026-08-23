@@ -84,8 +84,8 @@ export function PayoffChart({
       >
         <defs>
           <linearGradient id={`fill-${uid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-celeste-400)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="var(--color-celeste-400)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--color-accent-400)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--color-accent-400)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -145,14 +145,14 @@ export function PayoffChart({
           x2={x(strikeBps)}
           y1={PAD.t}
           y2={H - PAD.b}
-          stroke="var(--color-celeste-500)"
+          stroke="var(--color-accent-500)"
           strokeWidth="1"
           strokeDasharray="3 4"
         />
         <text
           x={x(strikeBps) + 6}
           y={PAD.t + 11}
-          className="fill-celeste-300 font-mono text-[11px]"
+          className="fill-accent-300 font-mono text-[11px]"
         >
           strike {(strikeBps / 100).toFixed(2)}%
         </text>
@@ -175,7 +175,7 @@ export function PayoffChart({
         <polyline
           points={curvePoints}
           fill="none"
-          stroke="var(--color-celeste-400)"
+          stroke="var(--color-accent-400)"
           strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -191,14 +191,14 @@ export function PayoffChart({
               x2={x(settlementCpiBps)}
               y1={y(settledPayout)}
               y2={H - PAD.b}
-              stroke="var(--color-signal-positive)"
+              stroke="var(--color-signal-warning)"
               strokeWidth="1"
             />
             <circle
               cx={x(settlementCpiBps)}
               cy={y(settledPayout)}
               r="5"
-              fill="var(--color-signal-positive)"
+              fill="var(--color-signal-warning)"
               stroke="var(--color-ink-900)"
               strokeWidth="2"
             />

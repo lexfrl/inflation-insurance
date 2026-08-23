@@ -224,7 +224,7 @@ function BuyForm({
                 min={0}
                 value={notionalInput}
                 onChange={(e) => setNotionalInput(e.target.value)}
-                className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum placeholder:text-paper-600 focus:border-celeste-500"
+                className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum placeholder:text-paper-600 focus:border-accent-500"
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
                 USDT
@@ -237,7 +237,7 @@ function BuyForm({
             hint={`Pays nothing below this. Capped at ${formatBps(period.capBps)}.`}
           >
             <div className="flex items-baseline justify-between">
-              <span className="font-mono text-2xl text-celeste-300 tnum">{formatBps(strikeBps)}</span>
+              <span className="font-mono text-2xl text-accent-300 tnum">{formatBps(strikeBps)}</span>
               <span className="text-xs text-paper-600">inflation</span>
             </div>
             <input
@@ -445,7 +445,7 @@ function PolicyRow({
         <div className="min-w-0">
           <div className="font-medium text-paper-100">
             <span className="font-mono tnum">{formatUsdt(policy.notional)} USDT</span> covered above{" "}
-            <span className="font-mono tnum text-celeste-300">{formatBps(policy.strikeBps)}</span>
+            <span className="font-mono tnum text-accent-300">{formatBps(policy.strikeBps)}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-paper-500">
             <span>

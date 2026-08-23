@@ -194,7 +194,7 @@ function PoolPanel({
                   min={0}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum focus:border-celeste-500"
+                  className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum focus:border-accent-500"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
                   USDT

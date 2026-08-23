@@ -42,7 +42,7 @@ export function Stat({
 }) {
   const toneClass =
     tone === "accent"
-      ? "text-celeste-300"
+      ? "text-accent-300"
       : tone === "positive"
         ? "text-signal-positive"
         : "text-paper-100";
@@ -94,13 +94,13 @@ export function Button({
   variant = "primary",
   className = "",
 }: ButtonProps) {
-  /* Contrast: primary is ink-950 text on celeste-400 (dark on light), which
+  /* Contrast: primary is ink-950 text on accent-400 (dark on light), which
      clears WCAG AA at body size. Secondary is paper-100 on ink-800 with a
      visible border, so it never disappears into the card behind it. */
   const base =
-    "rounded-control px-5 py-2.5 text-sm font-medium transition-transform duration-100 active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-40";
+    "rounded-control px-5 py-2.5 text-sm font-medium transition-[transform,background-color] [transition-duration:var(--dur-fast)] [transition-timing-function:var(--ease-ui)] active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-40";
   const variants = {
-    primary: "bg-celeste-400 text-ink-950 hover:bg-celeste-300",
+    primary: "bg-accent-400 text-ink-950 hover:bg-accent-300",
     secondary: "border border-ink-600 bg-ink-800 text-paper-100 hover:border-ink-600 hover:bg-ink-700",
   };
   return (
@@ -139,7 +139,7 @@ export function Chip({
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
         active
-          ? "bg-celeste-400 text-ink-950"
+          ? "bg-accent-400 text-ink-950"
           : "border border-ink-700 bg-ink-850 text-paper-300 hover:border-ink-600 hover:text-paper-100"
       }`}
     >
