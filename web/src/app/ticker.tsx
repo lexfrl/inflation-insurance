@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useReadContract } from "wagmi";
 import { inflationHedgeAbi } from "@/lib/generated";
 import { useDemoTarget } from "@/lib/demo-mode";
@@ -14,6 +15,7 @@ import { useNow } from "@/lib/useNow";
 export function Ticker() {
   const { chainId, addresses } = useDemoTarget();
   const now = useNow();
+  const pathname = usePathname();
 
   const { data: periods } = useReadContract({
     address: addresses.insurance,
@@ -36,6 +38,8 @@ export function Ticker() {
       }
     | undefined;
 
+  // The simple view deliberately carries none of this.
+  if (pathname === "/v2") return null;
   if (!period) return null;
 
   const backing = period.totalCollateral + period.totalPremiums - period.totalClaimed;

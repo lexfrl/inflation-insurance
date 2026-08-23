@@ -192,3 +192,17 @@ export const calendar: CalendarEntry[] = [
   { region: "AR", date: "Sep 11", time: "06:00", title: "GDP, quarterly", note: "Previous 0.30", impact: "medium" },
 ];
 export const calendarTabs = ["All", "AR", "US", "UK", "IN"] as const;
+
+/* A café's actual cost lines, for the "what got more expensive" panel on the
+   simple page. Categories a shop owner recognises beat index names they do
+   not -- "coffee, milk, flour" lands where "HedgyFood-AR" does not. Demo
+   values, like everything else in this file. */
+export type BasketLine = { label: string; delta: number };
+export const cafeBasket: BasketLine[] = [
+  { label: "Coffee beans", delta: 5.2 },
+  { label: "Milk & dairy", delta: 3.8 },
+  { label: "Flour & baking", delta: 3.1 },
+  { label: "Electricity", delta: 6.4 },
+  { label: "Packaging & cups", delta: 2.2 },
+  { label: "Rent", delta: 0.0 },
+];

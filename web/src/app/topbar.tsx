@@ -11,6 +11,7 @@ import { Wordmark } from "@/components/logo";
    the way the previous pass assumed. */
 const TITLES: Record<string, string> = {
   "/": "How it works",
+  "/v2": "Simple view",
   "/profile": "Dashboard",
   "/protect": "Buy cover",
   "/earn": "Earn",

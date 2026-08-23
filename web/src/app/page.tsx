@@ -111,7 +111,7 @@ function HeroPrompt() {
        Under prefers-reduced-motion the video is hidden and the poster shows
        through, which keeps the one motion rule this product already follows. */
     <section
-      className="shimmer-ring shimmer-ring-slow relative isolate overflow-hidden rounded-[28px] px-5 py-10 text-center sm:px-10 sm:py-14"
+      className="relative isolate overflow-hidden rounded-[28px] px-5 py-10 text-center sm:px-10 sm:py-14"
       style={{ backgroundColor: "var(--color-tf-900)" }}
     >
       <video
@@ -128,7 +128,11 @@ function HeroPrompt() {
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10"
-        style={{ backgroundImage: "var(--gradient-hero)", opacity: 0.82 }}
+        /* A flat neutral scrim, not the warm gradient: the amber wash read as a
+           glow over the footage. This still holds the contrast steady under the
+           heading -- the clip is high-contrast ASCII and white text sitting
+           straight on it flickers as frames change -- but adds no colour. */
+        style={{ backgroundColor: "color-mix(in srgb, var(--color-page) 66%, transparent)" }}
       />
       <h1 className="mx-auto max-w-[20ch] text-2xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
         What would inflation cost you this month?
