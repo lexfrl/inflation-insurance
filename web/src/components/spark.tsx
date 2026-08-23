@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /* Small inline charts for the metric cards, in the shape the reference uses.
  *
  * The series are real, not decorative. `premiumCurve` walks every strike from
@@ -51,14 +53,26 @@ export function Sparkline({
   points,
   tone = "accent",
   className = "h-10 w-full",
+  fill = true,
+  strokeWidth = 1.5,
+  w = 120,
+  h = 36,
 }: {
   points: { x: number; y: number }[];
   tone?: "accent" | "positive" | "danger";
   className?: string;
+  /** The table's rows draw a bare line; the metric tiles keep the area. */
+  fill?: boolean;
+  strokeWidth?: number;
+  /* The viewBox is sized by the caller so a wide, short chart is not drawn in
+     a 120x36 box and stretched -- `preserveAspectRatio="none"` would scale x
+     and y differently and the stroke would come out uneven. */
+  w?: number;
+  h?: number;
 }) {
   if (points.length < 2) return null;
-  const W = 120;
-  const H = 36;
+  const W = w;
+  const H = h;
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
   const xMin = Math.min(...xs);
@@ -80,19 +94,20 @@ export function Sparkline({
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={className} aria-hidden="true">
-      <path d={area} fill={stroke} opacity="0.12" />
-      <path d={d} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+      {fill && <path d={area} fill={stroke} opacity="0.12" />}
+      <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
 
-/* The reference's semicircular gauge, used here for how much of the pool the
-   cover already sold could be called on to pay. */
-export function Gauge({ value, label }: { value: number; label: string }) {
+/* Component 10's gauge: a 144 x 79.19 half-ring. The caption sits inside the
+   ring's opening rather than beside it, so the component only draws the arc and
+   positions whatever the card passes as children at the bottom of that gap. */
+export function Gauge({ value, children }: { value: number; children?: ReactNode }) {
   const pct = Math.max(0, Math.min(1, value));
-  const R = 34;
-  const CX = 44;
-  const CY = 40;
+  const R = 56;
+  const CX = 72;
+  const CY = 68;
   const arc = (from: number, to: number) => {
     const a1 = Math.PI * (1 + from);
     const a2 = Math.PI * (1 + to);
@@ -100,29 +115,22 @@ export function Gauge({ value, label }: { value: number; label: string }) {
     const y1 = CY + R * Math.sin(a1);
     const x2 = CX + R * Math.cos(a2);
     const y2 = CY + R * Math.sin(a2);
-    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <svg viewBox="0 0 88 48" className="h-12 w-[88px]" aria-hidden="true">
-        <path d={arc(0, 1)} fill="none" stroke="var(--color-surface-700)" strokeWidth="7" strokeLinecap="round" />
+    <div className="relative mx-auto h-[79.19px] w-[144px]">
+      <svg viewBox="0 0 144 79.19" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <path d={arc(0, 1)} fill="none" stroke="var(--color-tn-300)" strokeWidth="9" strokeLinecap="round" />
         <path
           d={arc(0, Math.max(pct, 0.001))}
           fill="none"
-          stroke="var(--color-accent-400)"
-          strokeWidth="7"
+          stroke="var(--color-tf-500)"
+          strokeWidth="9"
           strokeLinecap="round"
         />
       </svg>
-      <div>
-        {/* A real but tiny share rounds to "0%", which reads as a broken
-            widget rather than as "barely any of the pool is committed". */}
-        <div className="font-mono text-lg text-content-100 tnum">
-          {pct > 0 && pct * 100 < 1 ? "<1%" : `${(pct * 100).toFixed(0)}%`}
-        </div>
-        <div className="text-[11px] text-content-600">{label}</div>
-      </div>
+      <div className="absolute bottom-[6.94px] left-0 right-0 flex flex-col items-center">{children}</div>
     </div>
   );
 }

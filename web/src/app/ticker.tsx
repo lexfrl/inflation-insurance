@@ -58,7 +58,7 @@ export function Ticker() {
        hard clip mid-word reads as a broken layout, a fade reads as "there is
        more this way". */
     <div
-      className="flex items-center gap-6 overflow-x-auto border-b border-surface-700 bg-surface-850 px-5 py-2.5 text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex h-ticker items-center gap-6 overflow-x-auto text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       style={{
         maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 48px), transparent 100%)",
         WebkitMaskImage:
@@ -67,13 +67,13 @@ export function Ticker() {
     >
       {items.map((item) => (
         <div key={item.label} className="flex shrink-0 items-baseline gap-2">
-          <span className="text-content-500">{item.label}</span>
+          <span className="text-text-muted">{item.label}</span>
           <span
-            className={`font-mono tnum ${item.tone === "accent" ? "text-accent-400" : "text-content-100"}`}
+            className={`font-mono tnum ${item.tone === "accent" ? "text-accent" : "text-text"}`}
           >
             {item.value}
           </span>
-          {item.note && <span className="text-content-600">{item.note}</span>}
+          {item.note && <span className="text-text-dim">{item.note}</span>}
         </div>
       ))}
     </div>

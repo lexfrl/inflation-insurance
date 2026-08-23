@@ -10,47 +10,164 @@
    reason. Colors and radii below are plain values, so they use a normal
    @theme block. */
 @theme inline {
-  --font-sans: var(--font-ui);
+  /* The reference blocks are set in the macket's own face so their weight
+     hierarchy matches it exactly; `--font-brand` keeps the licensed Kern kit
+     reachable for Hedgy's own surfaces. */
+  --font-sans: var(--font-figma);
+  --font-brand: var(--font-ui);
   --font-mono: var(--font-numeric);
 }
 
 @theme {
-  /* Palette taken from truflation.com's own stylesheet, not eyeballed from a
-     screenshot. Their tokens ship paired light/dark values under the same
-     names; these are the dark ones.
-       page/surfaces  --tn-50 .. --tn-300
-       muted text     --tn-400 / --tn-500
-       brand          --tf-400 / --tf-500 / --tf-600
-       up / down      --green-400 / --red-500
-       highlight      --primary (amber) */
+  /* DARK THEME, amber primary.
+     The Figma macket is a light page on a blue accent; this product is not.
+     Every geometry, type step and structural decision still comes from the
+     macket and is unchanged -- only the colour resolves differently, and it
+     resolves here and nowhere else.
 
-  /* `surface-950` is what sits ON the accent: white. */
-  --color-surface-950: #ffffff;
-  --color-surface-900: #0e141e; /* tn-50  */
-  --color-surface-850: #141c28; /* tn-150 */
-  --color-surface-800: #18202e; /* tn-200 */
-  --color-surface-700: #263241; /* tn-275 */
-  --color-surface-600: #2a3746; /* tn-300 */
+     The macket's real light ramp is kept verbatim at the bottom of this block
+     as --figma-tn-* so any value can still be checked against the design. It
+     is deliberately NOT wired to a utility: naming a colour after a Figma
+     token while shipping a different value is the exact mistake this file
+     carried before, and it is not being repeated. */
 
-  --color-content-100: #ffffff;
-  --color-content-300: #a5b2c3;
-  --color-content-500: #62768a; /* tn-500 */
-  --color-content-600: #58697d; /* tn-400 */
+  /* Ground. A neutral ramp off #0F0F0F -- deliberately untinted, so the amber
+     is the only warmth on the page and nothing competes with it. */
+  --color-page: #0f0f0f;
+  --color-surface: #161616;
+  --color-surface-2: #1e1e1e;
+  --color-surface-3: #272727;
+  --color-line: #242424;
+  --color-line-strong: #313131;
 
-  --color-accent-300: #6ea8ff; /* tf-400, the lighter cut used for hover */
-  --color-accent-400: #3b70da; /* tf-500, their primary blue */
-  --color-accent-500: #0b4299; /* tf-600 */
-  --color-accent-600: #0a3170; /* tf-700 */
+  /* Ink */
+  --color-ink: #f5f5f5;
+  --color-ink-2: #c9c9c9;
+  --color-muted: #8c8c8c;
+  --color-dim: #6b6b6b;
 
-  --color-signal-positive: #00d19e; /* green-400 */
-  --color-signal-warning: #f59e0b; /* --primary */
-  --color-signal-danger: #fb5a5a; /* red-500  */
+  /* Primary */
+  --color-accent: #ffc34c;
+  --color-accent-hover: #ffd37d;
+  --color-accent-dim: #c99833;
+  --color-accent-deep: #7a5a19;
+  /* What sits ON the amber. Amber is a light surface, so its text is dark. */
+  --color-on-accent: #1a1206;
+
+  /* Movement. Lifted from the macket's greens/reds so they still read as the
+     same signals, but raised for contrast against a dark ground. */
+  --color-up-400: #00d19e;
+  --color-up-500: #34e0b4;
+  --color-up-600: #17a783;
+  --color-up-100: rgba(0, 209, 158, 0.14);
+  --color-up-200: rgba(0, 209, 158, 0.22);
+  --color-up-300: #1e7f66;
+  --color-down-400: #fb5a5a;
+  --color-down-500: #ff7a7a;
+  --color-down-100: rgba(251, 90, 90, 0.14);
+  --color-down-200: rgba(251, 90, 90, 0.22);
+  --color-down-300: #8c3535;
+  --color-indigo-500: #8b8dff;
+
+  /* The macket's token names, mapped onto the ramp above. These keep the
+     component code that was written against the design readable without
+     pretending the values are Truflation's. */
+  --color-tn-100: var(--color-surface-2);
+  --color-tn-150: var(--color-surface-2);
+  --color-tn-200: var(--color-surface-2);
+  --color-tn-250: var(--color-line);
+  --color-tn-300: var(--color-line-strong);
+  --color-tn-400: var(--color-dim);
+  --color-tn-500: var(--color-muted);
+  --color-tn-600: var(--color-ink-2);
+  --color-tn-800: var(--color-ink);
+  --color-tf-400: var(--color-accent-hover);
+  --color-tf-500: var(--color-accent);
+  --color-tf-600: var(--color-accent-dim);
+  --color-tf-700: var(--color-accent-deep);
+  --color-tf-800: var(--color-accent);
+  --color-tf-900: var(--color-page);
+  --color-tab-rest: var(--color-surface-2);
+
+  /* Semantic layer used by the shell and the older pages. */
+  --color-card: var(--color-surface);
+  --color-card-alt: var(--color-surface-2);
+  --color-border: var(--color-line);
+  --color-border-strong: var(--color-line-strong);
+  --color-text: var(--color-ink);
+  --color-text-muted: var(--color-muted);
+  --color-text-dim: var(--color-dim);
+  --color-text-invert: var(--color-on-accent);
+
+  /* Pre-rename aliases, still referenced by /earn, /profile, /admin and ui.tsx. */
+  --color-surface-950: var(--color-on-accent);
+  --color-surface-900: var(--color-page);
+  --color-surface-850: var(--color-surface);
+  --color-surface-800: var(--color-surface-2);
+  --color-surface-700: var(--color-line);
+  --color-surface-600: var(--color-line-strong);
+  --color-content-100: var(--color-ink);
+  --color-content-300: var(--color-ink-2);
+  --color-content-500: var(--color-muted);
+  --color-content-600: var(--color-dim);
+  --color-accent-300: var(--color-accent-hover);
+  --color-accent-400: var(--color-accent);
+  --color-accent-500: var(--color-accent-dim);
+  --color-accent-600: var(--color-accent-deep);
+  --color-signal-positive: var(--color-up-500);
+  --color-signal-warning: var(--color-accent);
+  --color-signal-danger: var(--color-down-500);
+
+  /* Spacing scale, verbatim from the macket's `apkt/spacing-*` tokens. */
+  --spacing-apkt-01: 2px;
+  --spacing-apkt-1: 4px;
+  --spacing-apkt-2: 8px;
+  --spacing-apkt-3: 12px;
+  --spacing-apkt-4: 16px;
+  --spacing-apkt-5: 20px;
+  --spacing-apkt-6: 24px;
+  --spacing-apkt-7: 28px;
+  --spacing-apkt-8: 32px;
+  --spacing-apkt-10: 40px;
+  --spacing-apkt-12: 48px;
+  --spacing-apkt-16: 64px;
+
+  /* Shell geometry, measured off the node tree rather than guessed:
+     sidebar 220, topbar 65, ticker 35, content column 1440 = 1096 + 24 + 320. */
+  --spacing-rail: 220px;
+  --spacing-topbar: 65px;
+  --spacing-ticker: 35px;
+  --spacing-shell: 1440px;
+  --spacing-main-col: 1096px;
+  --spacing-aside-col: 320px;
+
+  /* max-w-* reads the --container-* namespace in Tailwind v4, not --spacing-*,
+     so the shell widths are declared in both places. */
+  --container-shell: 1440px;
+  --container-main-col: 1096px;
+  --container-aside-col: 320px;
 
   --radius-card: 12px;
   --radius-control: 8px;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* On a dark ground a card separates by being lighter than the page, so the
+     shadow only has to seat it, not draw it. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  /* The macket's own light ramp, kept for reference only -- not wired to any
+     utility. Check a design value against these, never against the ramp above. */
+  --figma-tn-100: #f9fafb;
+  --figma-tn-150: #f3f5f7;
+  --figma-tn-200: #eceff2;
+  --figma-tn-250: #e5ebf5;
+  --figma-tn-300: #c4d0d9;
+  --figma-tn-400: #99adbd;
+  --figma-tn-500: #62768a;
+  --figma-tn-600: #394960;
+  --figma-tn-800: #11171d;
+  --figma-tf-500: #3b70da;
+  --figma-tf-800: #002152;
 }
 
 :root {
@@ -58,18 +175,76 @@
   --dur-fast: 0.22s;
   --dur: 0.34s;
 
-  /* Their hero panel, verbatim from the same stylesheet. */
+  /* Ours, not the macket's: its hero is a blue ramp, which reads as a
+     different brand next to an amber primary. */
   --gradient-hero: linear-gradient(
-    175deg,
-    #1a2b6b 16.36%,
-    #0d58c6 33.24%,
-    #6f8bef 46.48%,
-    rgba(255, 255, 255, 0) 100%
+    168deg,
+    #141414 0%,
+    #1f1a11 42%,
+    #332814 74%,
+    #141414 100%
   );
+
+
 }
 
 /* Shape consistency lock: cards 14px, controls 10px, period chips are the one
    documented exception (full pill), and nothing else invents its own radius. */
+
+/* Animated gradient ring, the same trick the macket uses for its composer
+   border: a conic gradient rotated by an animated angle, masked down to a 1px
+   ring so only the outline shows and the element keeps its own fill.
+
+   `@property` is what makes the angle animatable at all -- a plain custom
+   property is a string to the animation engine and would jump rather than
+   sweep. Where it is unsupported the ring simply renders static, which is a
+   fine resting state rather than a broken one. */
+@property --ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes ring-sweep {
+  to {
+    --ring-angle: 360deg;
+  }
+}
+
+.shimmer-ring {
+  position: relative;
+  isolation: isolate;
+}
+
+.shimmer-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ring-angle),
+    var(--color-accent),
+    var(--color-indigo-500),
+    var(--color-accent)
+  );
+  /* Punch the middle out so the gradient survives only as the outline. */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: ring-sweep 5s linear infinite;
+}
+
+/* A slower, wider sweep for large surfaces, so a panel does not strobe. */
+.shimmer-ring-slow::before {
+  animation-duration: 9s;
+}
 
 @layer base {
   /* Tabular numerals everywhere a value can change under the user's eyes --
@@ -96,12 +271,12 @@
   input[type="range"]::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 999px;
-    background: var(--color-surface-700);
+    background: var(--color-surface-3);
   }
   input[type="range"]::-moz-range-track {
     height: 4px;
     border-radius: 999px;
-    background: var(--color-surface-700);
+    background: var(--color-surface-3);
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -111,8 +286,8 @@
     width: 18px;
     border-radius: 999px;
     background: var(--color-accent-400);
-    border: 3px solid var(--color-surface-850);
-    box-shadow: 0 0 0 1px var(--color-accent-600);
+    border: 3px solid var(--color-surface);
+    box-shadow: 0 0 0 1px var(--color-border-strong);
     transition: transform 120ms ease;
   }
   input[type="range"]::-moz-range-thumb {
@@ -120,8 +295,8 @@
     width: 18px;
     border-radius: 999px;
     background: var(--color-accent-400);
-    border: 3px solid var(--color-surface-850);
-    box-shadow: 0 0 0 1px var(--color-accent-600);
+    border: 3px solid var(--color-surface);
+    box-shadow: 0 0 0 1px var(--color-border-strong);
   }
   input[type="range"]:active::-webkit-slider-thumb {
     transform: scale(0.92);

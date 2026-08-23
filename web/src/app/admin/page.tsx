@@ -101,7 +101,7 @@ function CreatePeriodForm() {
       <button
         disabled={write.isPending || receipt.isLoading}
         onClick={submit}
-        className="mt-4 rounded-control bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
+        className="mt-4 rounded-control bg-accent px-6 py-2 font-medium text-on-accent disabled:opacity-50"
       >
         {write.isPending || receipt.isLoading ? "Creating..." : "Create period"}
       </button>
@@ -146,7 +146,7 @@ function PostSettlementForm() {
             chainId,
           })
         }
-        className="mt-4 rounded-control bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
+        className="mt-4 rounded-control bg-accent px-6 py-2 font-medium text-on-accent disabled:opacity-50"
       >
         {write.isPending || receipt.isLoading ? "Posting..." : "Post settlement"}
       </button>

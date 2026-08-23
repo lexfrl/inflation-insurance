@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowUp } from "@phosphor-icons/react";
+import { ArrowUp, ArrowUpRight, ChartPieSlice } from "@phosphor-icons/react";
 import { useReadContract } from "wagmi";
 import { inflationHedgeAbi } from "@/lib/generated";
 import { useDemoTarget } from "@/lib/demo-mode";
@@ -11,6 +11,20 @@ import { formatBps, formatCountdown, formatUsdt } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 import { Card } from "@/components/ui";
 import { Gauge, Sparkline, payoutCurve, premiumCurve } from "@/components/spark";
+import {
+  DataStreams,
+  EconomicCalendar,
+  IndexVsOfficial,
+  InflationHeatmap,
+  MarketSummary,
+  Reports,
+  TopIndexes,
+  TopMovers,
+  TrendingPair,
+  Watchlist,
+  Section,
+  Surface,
+} from "@/components/dashboard-blocks";
 
 /* The dashboard, laid out to match the reference: gradient prompt panel, a row
    of metric cards with inline charts, a summary block, and a right rail. Every
@@ -51,11 +65,22 @@ export default function DashboardPage() {
   const period = periods?.[0] as Period | undefined;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex flex-col gap-5">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1096px)_320px]">
+      <div className="flex min-w-0 flex-col gap-6">
         <HeroPrompt />
         {period ? <MetricRow period={period} now={now} /> : <MetricSkeleton />}
         {period && <SummaryBlock period={period} />}
+        {/* Everything below is the reference layout's block set, running on
+            demo data -- see lib/demo-data.ts. The blocks above this line read
+            the contract; these do not, and the two are kept apart on purpose. */}
+        <MarketSummary />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <InflationHeatmap />
+          <IndexVsOfficial />
+        </div>
+        <TopIndexes />
+        <TrendingPair />
+        <DataStreams />
       </div>
       <RightRail periods={(periods as Period[] | undefined) ?? []} now={now} />
     </div>
@@ -76,10 +101,35 @@ function HeroPrompt() {
   };
 
   return (
+    /* The panel is a video ground with the gradient kept on top as a scrim:
+       the clip is high-contrast ASCII, so white text sitting straight on it
+       would flicker as frames change. The scrim holds the contrast steady and
+       the copy never has to fight the footage.
+
+       `poster` means the first paint is the still rather than a black box, and
+       the clip is muted + playsInline so mobile browsers will start it at all.
+       Under prefers-reduced-motion the video is hidden and the poster shows
+       through, which keeps the one motion rule this product already follows. */
     <section
-      className="rounded-card px-5 py-10 text-center sm:px-10 sm:py-14"
-      style={{ background: "var(--gradient-hero)" }}
+      className="shimmer-ring shimmer-ring-slow relative isolate overflow-hidden rounded-[28px] px-5 py-10 text-center sm:px-10 sm:py-14"
+      style={{ backgroundColor: "var(--color-tf-900)" }}
     >
+      <video
+        className="motion-reduce:hidden absolute inset-0 -z-20 size-full object-cover"
+        src="/hero-ascii.mp4"
+        poster="/hero-ascii.jpg"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10"
+        style={{ backgroundImage: "var(--gradient-hero)", opacity: 0.82 }}
+      />
       <h1 className="mx-auto max-w-[20ch] text-2xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
         What would inflation cost you this month?
       </h1>
@@ -103,7 +153,7 @@ function HeroPrompt() {
         <button
           type="submit"
           aria-label="See what cover costs"
-          className="shrink-0 rounded-control bg-accent-400 p-2.5 text-white transition-colors hover:bg-accent-300"
+          className="shrink-0 rounded-control bg-accent-400 p-2.5 text-on-accent transition-colors hover:bg-accent-300"
         >
           <ArrowUp size={18} weight="bold" />
         </button>
@@ -126,10 +176,36 @@ function HeroPrompt() {
 
 function MetricSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {[0, 1, 2, 3].map((i) => (
-        <Card key={i} className="h-[132px] animate-pulse" />
+        <div key={i} className="h-[160px] animate-pulse rounded-[12px] bg-tn-150" />
       ))}
+    </div>
+  );
+}
+
+/* The metric row follows the reference's three tile variants rather than one
+   generic card:
+     Component 8  (1:5362) label + 28/28 figure + white chip + 32-tall spark
+     Component 9  (1:5486) title/sub, then a centred eyebrow, figure and CTA
+     Component 10 (1:5510) title/sub with a View pill, a 144x79 half-ring, and
+                          a two-column legend split by a tn/250 rule
+   All three share the same shell: tn/150 ground, 12 radius, 12 padding, a
+   12/16 Semi Bold title and a 12/12 regular sub in tn/500. */
+const TILE = "flex h-[160px] flex-col rounded-[12px] bg-tn-150 p-3";
+
+function TileHead({ title, sub, action }: { title: string; sub?: string; action?: ReactNode }) {
+  return (
+    <div className="flex w-full items-start justify-between gap-2">
+      <div className="flex flex-col gap-[3px]">
+        <span className="text-[12px] font-semibold leading-4 text-tn-800">{title}</span>
+        {sub && <span className="text-[12px] leading-3 text-tn-500">{sub}</span>}
+      </div>
+      {action ?? (
+        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-surface-3 text-tn-600">
+          <ArrowUpRight size={12} />
+        </span>
+      )}
     </div>
   );
 }
@@ -153,70 +229,119 @@ function MetricRow({ period, now }: { period: Period; now: number }) {
   const maxPay = ((capBps - SAMPLE_STRIKE) * SAMPLE_NOTIONAL) / 10_000;
   const backing = period.totalCollateral + period.totalPremiums - period.totalClaimed;
   const used = backing > 0n ? Number(period.totalMaxLiability) / Number(backing) : 0;
-  const expected =
-    buckets.reduce((acc, b, i) => acc + ((probs[i] ?? 0) / 10_000) * b, 0) / 100;
+  const usedLabel = used > 0 && used * 100 < 1 ? "<1%" : `${(used * 100).toFixed(0)}%`;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Card className="p-4">
-        <div className="text-[11px] uppercase tracking-[0.06em] text-content-600">
-          Cover 1,000 above 3%
-        </div>
-        <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="font-mono text-2xl text-content-100 tnum">{costNow.toFixed(2)}</span>
-          <span className="text-xs text-content-500">USDT</span>
-        </div>
-        <Sparkline points={costCurve} className="mt-3 h-9 w-full" />
-        <div className="mt-1 text-[11px] text-content-600">Cost at every level</div>
-      </Card>
-
-      <Card className="p-4">
-        <div className="text-[11px] uppercase tracking-[0.06em] text-content-600">
-          Biggest payout
-        </div>
-        <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="font-mono text-2xl text-signal-positive tnum">{maxPay.toFixed(2)}</span>
-          <span className="text-xs text-content-500">USDT</span>
-        </div>
-        <Sparkline points={payCurve} tone="positive" className="mt-3 h-9 w-full" />
-        <div className="mt-1 text-[11px] text-content-600">Payout as inflation rises</div>
-      </Card>
-
-      <Card className="p-4">
-        <div className="text-[11px] uppercase tracking-[0.06em] text-content-600">
-          Pool committed
-        </div>
-        <div className="mt-3">
-          <Gauge value={used} label={`of ${formatUsdt(backing, 0)} USDT`} />
-        </div>
-        <div className="mt-2 text-[11px] text-content-600">
-          Cover sold {formatUsdt(period.totalMaxLiability, 0)} USDT
-        </div>
-      </Card>
-
-      <Card className="p-4">
-        <div className="text-[11px] uppercase tracking-[0.06em] text-content-600">
-          Buying closes in
-        </div>
-        <div className="mt-1 font-mono text-2xl text-content-100 tnum">
-          {formatCountdown(Number(period.saleEnd) - now)}
-        </div>
-        <div className="mt-3 border-t border-surface-700 pt-3 text-[11px] text-content-600">
-          Expected inflation{" "}
-          <span className="font-mono text-content-300 tnum">{expected.toFixed(2)}%</span>
-        </div>
-        <div className="mt-1 text-[11px] text-content-600">
-          Period ends in{" "}
-          <span className="font-mono text-content-300 tnum">
-            {formatCountdown(Number(period.periodEnd) - now)}
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {/* Component 8 */}
+      <div className={`${TILE} justify-between`}>
+        <TileHead title="Cover 1,000 above 3%" />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[28px] font-semibold leading-7 text-tn-800 tnum">
+            {costNow.toFixed(2)}
+          </span>
+          <span className="rounded-[12px] bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold leading-[15px] text-tn-500">
+            USDT
           </span>
         </div>
-      </Card>
+        <Sparkline points={costCurve} w={238} h={32} className="h-8 w-full" />
+      </div>
+
+      {/* Component 8 */}
+      <div className={`${TILE} justify-between`}>
+        <TileHead title="Biggest payout" />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[28px] font-semibold leading-7 text-up-500 tnum">
+            {maxPay.toFixed(2)}
+          </span>
+          <span className="rounded-[12px] bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold leading-[15px] text-tn-500">
+            USDT
+          </span>
+        </div>
+        <Sparkline points={payCurve} tone="positive" w={238} h={32} className="h-8 w-full" />
+      </div>
+
+      {/* Component 10 */}
+      <div className={TILE}>
+        <TileHead
+          title="Pool committed"
+          sub={`of ${formatUsdt(backing, 0)} USDT`}
+          action={
+            <Link
+              href="/earn"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-surface-3 px-3 py-1.5 text-[11px] font-semibold leading-[11px] text-tn-800"
+            >
+              View
+              <ArrowUpRight size={12} />
+            </Link>
+          }
+        />
+        <Gauge value={used}>
+          <span className="text-[10px] font-semibold uppercase leading-3 tracking-[0.8px] text-tn-500">
+            Committed
+          </span>
+          <span className="mt-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold leading-[15.95px] text-tn-800 tnum">
+            {usedLabel}
+          </span>
+        </Gauge>
+        <div className="mt-auto flex">
+          <div className="flex flex-1 flex-col items-center gap-[3px] px-1">
+            <div className="flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-tf-500" />
+              <span className="text-[10px] font-semibold uppercase leading-3 tracking-[0.4px] text-tn-500">
+                Sold
+              </span>
+            </div>
+            <span className="text-[13px] font-semibold leading-4 text-tn-800 tnum">
+              {formatUsdt(period.totalMaxLiability, 0)}
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col items-center gap-[3px] border-l border-tn-250 px-1">
+            <div className="flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-tn-800" />
+              <span className="text-[10px] font-semibold uppercase leading-3 tracking-[0.4px] text-tn-500">
+                Backing
+              </span>
+            </div>
+            <span className="text-[13px] font-semibold leading-4 text-tn-800 tnum">
+              {formatUsdt(backing, 0)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Component 9 */}
+      <div className={TILE}>
+        <TileHead title="Buying closes in" sub={period.label} />
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold uppercase leading-3 tracking-[0.8px] text-tn-500">
+            Sale closes in
+          </span>
+          <div className="flex items-baseline gap-1 pt-1">
+            <span className="text-[28px] font-semibold leading-8 text-tn-800 tnum">
+              {formatCountdown(Number(period.saleEnd) - now)}
+            </span>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/protect"
+              className="inline-block rounded-full bg-accent px-4 py-2 text-[12px] font-semibold leading-4 text-on-accent"
+            >
+              Buy cover
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-/* The reference's heatmap plus comparison table, in one block. */
+/* These two blocks have no counterpart in the macket -- they are Hedgy's own
+   -- so they borrow its card language instead of inventing one: the section
+   title sits above a white card on a tn/200 hairline, 16 padding, and the
+   inner type runs the same 14/20, 12/16 and 11/16.5 steps as the reference
+   blocks. Previously they were grey panels with the heading inside, which is
+   why they read as a different product from everything around them. */
 function SummaryBlock({ period }: { period: Period }) {
   const capBps = Number(period.capBps);
   const buckets = period.cpiBucketsBps.map(Number);
@@ -230,74 +355,73 @@ function SummaryBlock({ period }: { period: Period }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="p-5">
-        <h2 className="text-sm font-medium text-content-100">Where inflation is expected to land</h2>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {buckets.map((b, i) => {
-            const p = probs[i] ?? 0;
-            const intensity = p / maxProb;
-            return (
-              <div
-                key={b}
-                className="rounded-control border border-surface-700 p-4"
-                style={{
-                  // Opacity carries the probability, so the tile is a reading
-                  // of the histogram rather than an arbitrary colour choice.
-                  background: `color-mix(in srgb, var(--color-accent-400) ${(intensity * 26).toFixed(0)}%, transparent)`,
-                }}
-              >
-                <div className="font-mono text-lg text-content-100 tnum">{formatBps(b, 0)}</div>
-                <div className="mt-1 font-mono text-xs text-content-300 tnum">
-                  {formatBps(p, 0)} chance
+      <Section title="Where inflation is expected to land">
+        <Surface className="p-4">
+          <div className="grid grid-cols-2 gap-2">
+            {buckets.map((b, i) => {
+              const prob = probs[i] ?? 0;
+              const intensity = prob / maxProb;
+              return (
+                <div
+                  key={b}
+                  className="rounded-[12px] p-3"
+                  style={{
+                    // Opacity carries the probability, so the tile is a reading
+                    // of the histogram rather than an arbitrary colour choice.
+                    background: `color-mix(in srgb, var(--color-tf-500) ${(intensity * 14).toFixed(0)}%, var(--color-tn-150))`,
+                  }}
+                >
+                  <div className="text-[20px] font-semibold leading-7 text-tn-800 tnum">
+                    {formatBps(b, 0)}
+                  </div>
+                  <div className="mt-0.5 text-[12px] leading-4 text-tn-500 tnum">
+                    {formatBps(prob, 0)} chance
+                  </div>
+                  <div className="mt-1 text-[11px] leading-[16.5px] text-tn-500">
+                    Pays{" "}
+                    <span className="tnum">
+                      {(
+                        (Math.min(Math.max(b - SAMPLE_STRIKE, 0), capBps - SAMPLE_STRIKE) *
+                          SAMPLE_NOTIONAL) /
+                        10_000
+                      ).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="mt-2 text-[11px] text-content-600">
-                  Pays{" "}
-                  <span className="font-mono tnum">
-                    {(
-                      (Math.min(Math.max(b - SAMPLE_STRIKE, 0), capBps - SAMPLE_STRIKE) *
-                        SAMPLE_NOTIONAL) /
-                      10_000
-                    ).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-content-600">
-          Payouts shown for 1,000 USDT covered above 3%.
-        </p>
-      </Card>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[12px] leading-4 text-tn-500">
+            Payouts shown for 1,000 USDT covered above 3%.
+          </p>
+        </Surface>
+      </Section>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-medium text-content-100">What cover costs at each level</h2>
-        <table className="mt-4 w-full text-sm">
-          <thead>
-            <tr className="text-[11px] uppercase tracking-[0.06em] text-content-600">
-              <th className="pb-2 text-left font-medium">Cover above</th>
-              <th className="pb-2 text-right font-medium">Costs</th>
-              <th className="pb-2 text-right font-medium">Pays up to</th>
-            </tr>
-          </thead>
-          <tbody>
-            {strikes.map((s) => (
-              <tr key={s} className="border-t border-surface-700">
-                <td className="py-2.5 font-mono text-content-100 tnum">{formatBps(s)}</td>
-                <td className="py-2.5 text-right font-mono text-content-300 tnum">
-                  {costAt(s).toFixed(2)}
-                </td>
-                <td className="py-2.5 text-right font-mono text-accent-300 tnum">
-                  {(((capBps - s) * SAMPLE_NOTIONAL) / 10_000).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-3 text-[11px] leading-relaxed text-content-600">
-          Priced the way the contract prices it: expected payout across the outcomes above, times
-          a {(loadBps / 10_000).toFixed(2)}x load.
-        </p>
-      </Card>
+      <Section title="What cover costs at each level">
+        <Surface className="p-4">
+          <div className="grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.06em] text-tn-500">
+            <span>Cover above</span>
+            <span className="text-right">Costs</span>
+            <span className="text-right">Pays up to</span>
+          </div>
+          {strikes.map((st) => (
+            <div
+              key={st}
+              className="grid h-[45px] grid-cols-3 items-center gap-2 border-b border-tn-200 text-[14px] last:border-b-0"
+            >
+              <span className="font-semibold text-tn-800 tnum">{formatBps(st)}</span>
+              <span className="text-right text-tn-800 tnum">{costAt(st).toFixed(2)}</span>
+              <span className="text-right font-semibold text-accent tnum">
+                {(((capBps - st) * SAMPLE_NOTIONAL) / 10_000).toFixed(2)}
+              </span>
+            </div>
+          ))}
+          <p className="mt-3 text-[12px] leading-4 text-tn-500">
+            Priced the way the contract prices it: expected payout across the outcomes above, times
+            a {(loadBps / 10_000).toFixed(2)}x load.
+          </p>
+        </Surface>
+      </Section>
     </div>
   );
 }
@@ -306,7 +430,7 @@ function RightRail({ periods, now }: { periods: Period[]; now: number }) {
   const period = periods[0];
 
   return (
-    <aside className="flex flex-col gap-5">
+    <aside className="flex flex-col gap-6">
       <Card className="p-4">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-sm font-medium text-content-100">Periods</h2>
@@ -413,11 +537,17 @@ function RightRail({ periods, now }: { periods: Period[]; now: number }) {
         </ol>
         <Link
           href="/protect"
-          className="mt-4 block rounded-control bg-accent-400 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-accent-300"
+          className="mt-4 block rounded-control bg-accent-400 py-2 text-center text-sm font-medium text-on-accent transition-colors hover:bg-accent-300"
         >
           Buy cover
         </Link>
       </Card>
+
+      {/* Demo-data rail blocks, matching the reference's 320-wide column. */}
+      <Watchlist />
+      <Reports />
+      <TopMovers />
+      <EconomicCalendar />
     </aside>
   );
 }
