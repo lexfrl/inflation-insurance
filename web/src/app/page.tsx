@@ -14,6 +14,8 @@ import { useDemoTarget } from "@/lib/demo-mode";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
+import { PayoffChart } from "@/components/payoff-chart";
+import { Button, Callout, Card, Chip, Field, SectionTitle, Stat } from "@/components/ui";
 
 type Period = {
   label: string;
@@ -57,42 +59,44 @@ export default function BuyerPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Protect your spending from inflation</h1>
-        <p className="mt-1 text-white/60">
-          Choose how much monthly spending to protect and above what inflation level. No shares,
-          no probabilities to trade -- just a payout that grows with the shock.
-        </p>
-      </div>
+      <SectionTitle
+        title="Protect your spending from inflation"
+        sub="Tell us how much you spend in a month and the inflation level you want covered. If prices rise past it, you get paid in proportion to how far past. No shares, no odds to trade."
+      />
 
-      {!periods || periods.length === 0 ? (
-        <p className="text-white/50">No active protection periods yet. Check back soon.</p>
+      {periods === undefined ? (
+        <Card className="h-[420px] animate-pulse" />
+      ) : periods.length === 0 ? (
+        <Card className="p-10 text-center">
+          <p className="text-paper-100">No protection period is open yet.</p>
+          <p className="mt-2 text-sm text-paper-500">
+            An operator opens each period with its CPI terms before cover can be bought.
+          </p>
+        </Card>
       ) : (
-        <div className="flex gap-2">
-          {periods.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => setSelectedPeriodId(i)}
-              className={`rounded-full px-4 py-1.5 text-sm ${
-                effectiveSelectedPeriodId === i
-                  ? "bg-white text-black"
-                  : "bg-white/10 text-white/70 hover:bg-white/20"
-              }`}
-            >
-              {(p as Period).label}
-            </button>
-          ))}
-        </div>
-      )}
+        <>
+          <div className="flex flex-wrap gap-2">
+            {periods.map((p, i) => (
+              <Chip
+                key={i}
+                active={effectiveSelectedPeriodId === i}
+                onClick={() => setSelectedPeriodId(i)}
+              >
+                {(p as Period).label}
+              </Chip>
+            ))}
+          </div>
 
-      {period && effectiveSelectedPeriodId !== null && (
-        <BuyForm
-          periodId={effectiveSelectedPeriodId}
-          period={period}
-          saleOpen={saleOpen}
-          isConnected={isConnected}
-          onBought={() => refetchPeriods()}
-        />
+          {period && effectiveSelectedPeriodId !== null && (
+            <BuyForm
+              periodId={effectiveSelectedPeriodId}
+              period={period}
+              saleOpen={saleOpen}
+              isConnected={isConnected}
+              onBought={() => refetchPeriods()}
+            />
+          )}
+        </>
       )}
 
       {address && <MyPolicies address={address} />}
@@ -168,115 +172,145 @@ function BuyForm({
   }, [buyReceipt.isSuccess]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-white/60">How much monthly spending do you want to protect?</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              value={notionalInput}
-              onChange={(e) => setNotionalInput(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2"
-            />
-            <span className="text-white/50">USDT</span>
-          </div>
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-white/60">
-            Protect me above: {formatBps(strikeBps)} inflation (max {formatBps(period.capBps)})
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={capBps - 1}
-            value={strikeBps}
-            onChange={(e) => setStrikeBps(Number(e.target.value))}
-            className="w-full"
+    <Card>
+      {/* Chart left, ticket right: the shape of the thing you are buying and
+          the price of it belong on screen together, so moving the strike
+          slider visibly moves the kink in the curve. */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="border-b border-ink-700 p-5 lg:border-b-0 lg:border-r">
+          <PayoffChart
+            capBps={capBps}
+            strikeBps={strikeBps}
+            notional={Number(notional) / 1_000_000}
+            buckets={period.cpiBucketsBps.map(Number)}
+            probs={period.probBps.map(Number)}
+            settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
           />
-        </label>
-      </div>
-
-      <div className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-black/30 p-4 text-center">
-        <div>
-          <div className="text-xs uppercase text-white/40">Cost today</div>
-          <div className="text-xl font-semibold">
-            {quoting ? "..." : formatUsdt(premium)} <span className="text-sm text-white/50">USDT</span>
-          </div>
-        </div>
-        <div>
-          <div className="text-xs uppercase text-white/40">Maximum payout</div>
-          <div className="text-xl font-semibold">
-            {quoting ? "..." : formatUsdt(maxPayout)} <span className="text-sm text-white/50">USDT</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        {!isConnected ? (
-          <p className="text-center text-white/50">Connect your wallet to buy protection.</p>
-        ) : !saleOpen ? (
-          <p className="text-center text-white/50">Sale window closed for this period.</p>
-        ) : needsApproval ? (
-          <button
-            disabled={approve.isPending || approveReceipt.isLoading || premium === undefined}
-            onClick={() =>
-              approve.writeContract({
-                address: addresses.usdt,
-                abi: mockUsdtAbi,
-                functionName: "approve",
-                // Approve max, not the exact premium: moving the strike
-                // slider changes the quote, which would otherwise force a
-                // second approval mid-demo. MockUSDT is a fake testnet
-                // token, so an unlimited approval carries no real risk.
-                args: [addresses.insurance, maxUint256],
-                chainId,
-              })
-            }
-            className="w-full rounded-lg bg-white py-3 font-medium text-black disabled:opacity-50"
-          >
-            {approve.isPending || approveReceipt.isLoading ? "Approving USDT..." : "Approve USDT"}
-          </button>
-        ) : (
-          <button
-            disabled={buy.isPending || buyReceipt.isLoading || premium === undefined}
-            onClick={() =>
-              buy.writeContract({
-                address: addresses.insurance,
-                abi: inflationHedgeAbi,
-                functionName: "buyPolicy",
-                args: [BigInt(periodId), notional, BigInt(strikeBps)],
-                chainId,
-              })
-            }
-            className="w-full rounded-lg bg-emerald-500 py-3 font-medium text-black disabled:opacity-50"
-          >
-            {buy.isPending || buyReceipt.isLoading ? "Buying protection..." : "Buy protection"}
-          </button>
-        )}
-        {buyReceipt.isSuccess && (
-          <p className="mt-2 text-center text-sm text-emerald-400">Protection purchased.</p>
-        )}
-        {/* Surface write reverts (e.g. "insufficient pool backing" when no
-            LP has deposited yet) -- silently swallowing these leaves a
-            clicked button that just... does nothing, which is exactly the
-            confusing failure mode this caught during testing. Pre-flight
-            rejections land in `approve.error`/`buy.error`; a revert that
-            still made it on-chain surfaces as `approveReceipt`/`buyReceipt`
-            ending in `isError` instead (see lib/tx.ts), so both need
-            checking. */}
-        {(approve.error || buy.error || approveReverted || buyReverted) && (
-          <p className="mt-2 text-center text-sm text-red-400">
-            {(approve.error ?? buy.error)?.message.split("\n")[0] ??
-              txErrorMessage(approveReceipt) ??
-              txErrorMessage(buyReceipt) ??
-              "Transaction reverted on-chain."}
+          <p className="mt-3 text-xs leading-relaxed text-paper-600">
+            Grey bars are the CPI outcomes this period is priced against, with the market&apos;s
+            probability for each. The blue line is what you receive at each outcome.
           </p>
-        )}
+        </div>
+
+        <div className="flex flex-col gap-5 p-5">
+          <Field
+            label="Monthly spending to protect"
+            hint="Your payout scales with this amount."
+          >
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                value={notionalInput}
+                onChange={(e) => setNotionalInput(e.target.value)}
+                className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum placeholder:text-paper-600 focus:border-celeste-500"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
+                USDT
+              </span>
+            </div>
+          </Field>
+
+          <Field
+            label="Cover me above"
+            hint={`Pays nothing below this. Capped at ${formatBps(period.capBps)}.`}
+          >
+            <div className="flex items-baseline justify-between">
+              <span className="font-mono text-2xl text-celeste-300 tnum">{formatBps(strikeBps)}</span>
+              <span className="text-xs text-paper-600">inflation</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={capBps - 1}
+              value={strikeBps}
+              onChange={(e) => setStrikeBps(Number(e.target.value))}
+              className="w-full"
+              aria-label="Inflation level to cover above"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4 rounded-control border border-ink-700 bg-ink-900 p-4">
+            <Stat
+              label="Cost today"
+              value={formatUsdt(premium)}
+              unit="USDT"
+              loading={quoting}
+            />
+            <Stat
+              label="Maximum payout"
+              value={formatUsdt(maxPayout)}
+              unit="USDT"
+              tone="accent"
+              loading={quoting}
+            />
+          </div>
+
+          <div className="mt-auto flex flex-col gap-3">
+            {!isConnected ? (
+              <Callout tone="muted">Connect a wallet to buy protection.</Callout>
+            ) : !saleOpen ? (
+              <Callout tone="muted">The sale window for this period has closed.</Callout>
+            ) : needsApproval ? (
+              <Button
+                disabled={approve.isPending || approveReceipt.isLoading || premium === undefined}
+                onClick={() =>
+                  approve.writeContract({
+                    address: addresses.usdt,
+                    abi: mockUsdtAbi,
+                    functionName: "approve",
+                    // Approve max, not the exact premium: moving the strike
+                    // slider changes the quote, which would otherwise force a
+                    // second approval mid-demo. MockUSDT is a fake testnet
+                    // token, so an unlimited approval carries no real risk.
+                    args: [addresses.insurance, maxUint256],
+                    chainId,
+                  })
+                }
+                className="w-full"
+              >
+                {approve.isPending || approveReceipt.isLoading ? "Approving USDT" : "Approve USDT"}
+              </Button>
+            ) : (
+              <Button
+                disabled={buy.isPending || buyReceipt.isLoading || premium === undefined}
+                onClick={() =>
+                  buy.writeContract({
+                    address: addresses.insurance,
+                    abi: inflationHedgeAbi,
+                    functionName: "buyPolicy",
+                    args: [BigInt(periodId), notional, BigInt(strikeBps)],
+                    chainId,
+                  })
+                }
+                className="w-full"
+              >
+                {buy.isPending || buyReceipt.isLoading ? "Buying protection" : "Buy protection"}
+              </Button>
+            )}
+
+            {buyReceipt.isSuccess && <Callout tone="positive">Protection purchased.</Callout>}
+
+            {/* Surface write reverts (e.g. "insufficient pool backing" when no
+                LP has deposited yet) -- silently swallowing these leaves a
+                clicked button that just... does nothing, which is exactly the
+                confusing failure mode this caught during testing. Pre-flight
+                rejections land in `approve.error`/`buy.error`; a revert that
+                still made it on-chain surfaces as `approveReceipt`/`buyReceipt`
+                ending in `isError` instead (see lib/tx.ts), so both need
+                checking. */}
+            {(approve.error || buy.error || approveReverted || buyReverted) && (
+              <Callout tone="danger">
+                {(approve.error ?? buy.error)?.message.split("\n")[0] ??
+                  txErrorMessage(approveReceipt) ??
+                  txErrorMessage(buyReceipt) ??
+                  "Transaction reverted on-chain."}
+              </Callout>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -315,8 +349,8 @@ function MyPolicies({ address }: { address: `0x${string}` }) {
   if (!policyIds || policyIds.length === 0) return null;
 
   return (
-    <div>
-      <h2 className="mb-3 text-lg font-semibold">My Policies</h2>
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold tracking-tight text-paper-100">Your protection</h2>
       <div className="flex flex-col gap-3">
         {policyIds.map((id, i) => {
           const policy = policies?.[i]?.result as
@@ -334,7 +368,7 @@ function MyPolicies({ address }: { address: `0x${string}` }) {
           return <PolicyRow key={id.toString()} policyId={id} policy={policy} onClaimed={() => refetch()} />;
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -385,21 +419,28 @@ function PolicyRow({
   const expired = hasClaimDeadline && now > Number(claimDeadline);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-medium">
-            Protect {formatUsdt(policy.notional)} USDT above {formatBps(policy.strikeBps)}
+    <Card className="p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="font-medium text-paper-100">
+            <span className="font-mono tnum">{formatUsdt(policy.notional)} USDT</span> covered above{" "}
+            <span className="font-mono tnum text-celeste-300">{formatBps(policy.strikeBps)}</span>
           </div>
-          <div className="text-sm text-white/50">
-            Max payout {formatUsdt(policy.maxPayout)} USDT · Premium paid {formatUsdt(policy.premiumPaid)} USDT
-            {hasClaimDeadline && <> · Claim by {formatDate(claimDeadline)}</>}
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-paper-500">
+            <span>
+              Max payout <span className="font-mono tnum">{formatUsdt(policy.maxPayout)}</span>
+            </span>
+            <span>
+              Premium paid <span className="font-mono tnum">{formatUsdt(policy.premiumPaid)}</span>
+            </span>
+            {hasClaimDeadline && <span>Claim by {formatDate(claimDeadline)}</span>}
           </div>
         </div>
         {policy.claimed ? (
-          <span className="text-sm text-white/40">Claimed</span>
+          <span className="shrink-0 text-sm text-paper-600">Claimed</span>
         ) : (
-          <button
+          <Button
+            variant={settled && !expired ? "primary" : "secondary"}
             disabled={!settled || expired || claim.isPending || claimReceipt.isLoading}
             onClick={() =>
               claim.writeContract({
@@ -410,23 +451,25 @@ function PolicyRow({
                 chainId,
               })
             }
-            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
+            className="shrink-0"
           >
             {claim.isPending || claimReceipt.isLoading
-              ? "Claiming..."
+              ? "Claiming"
               : !settled
                 ? "Awaiting settlement"
                 : expired
                   ? "Claim window closed"
                   : "Claim payout"}
-          </button>
+          </Button>
         )}
       </div>
       {(claim.error || claimReverted) && (
-        <p className="mt-2 text-sm text-red-400">
-          {claim.error?.message.split("\n")[0] ?? txErrorMessage(claimReceipt) ?? "Transaction reverted on-chain."}
-        </p>
+        <div className="mt-3">
+          <Callout tone="danger">
+            {claim.error?.message.split("\n")[0] ?? txErrorMessage(claimReceipt) ?? "Transaction reverted on-chain."}
+          </Callout>
+        </div>
       )}
-    </div>
+    </Card>
   );
 }

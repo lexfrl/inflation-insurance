@@ -1,4 +1,4 @@
-# IPC Shield
+# Hedgy
 
 Built at **Aleph Hackathon — Buenos Aires, August 2026**.
 
@@ -52,7 +52,7 @@ primitive; this is the insurance product built on top of it.
 
 And a fifth framing, for judges evaluating social impact: inflation is
 effectively an unpredictable tax on households. Sophisticated investors have
-derivatives to manage macro risk; ordinary consumers don't. IPC Shield makes
+derivatives to manage macro risk; ordinary consumers don't. Hedgy makes
 inflation protection accessible with a few dollars of USDT — turning a
 financial instrument normally available to institutions into a consumer
 financial-resilience product.

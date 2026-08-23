@@ -1,13 +1,139 @@
 @import "tailwindcss";
 
+/* Hedgy design tokens.
+   Fixed dark theme (see the note at the bottom of this file for why there is
+   no unlayered `body` rule). One accent for the whole product: `celeste`, the
+   Argentine sky blue -- the payoff curve, primary buttons, focus rings and
+   selected states all draw from it, and nothing else introduces a second hue.
+   Semantic colors (positive / warning / danger) exist only for states that
+   genuinely mean something, never for decoration. */
+/* `inline` matters for these two: the values are CSS vars defined on <html>
+   by next/font, and inlining is what the original file did for the same
+   reason. Colors and radii below are plain values, so they use a normal
+   @theme block. */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Fixed dark theme (not following system preference): the product's own
-   color choices, applied via Tailwind classes on <body> in layout.tsx.
-   Deliberately no unlayered `body { background: ... }` rule here -- Tailwind
-   v4 wraps its utilities in cascade layers, and an unlayered rule always
-   beats a layered one regardless of specificity, which is what silently
-   overrode the bg-neutral-950 class before this file was simplified. */
+@theme {
+
+  /* Surfaces: cold near-black, never pure #000 -- pure black flattens depth. */
+  --color-ink-950: #080b10;
+  --color-ink-900: #0b0f14;
+  --color-ink-850: #10151d;
+  --color-ink-800: #151c26;
+  --color-ink-700: #1e2734;
+  --color-ink-600: #2a3646;
+
+  /* Text */
+  --color-paper-100: #e9eef4;
+  --color-paper-300: #b3c0cf;
+  --color-paper-500: #7d8b9f;
+  --color-paper-600: #6b7a8d;
+
+  /* Accent: celeste. */
+  --color-celeste-300: #8fc7f0;
+  --color-celeste-400: #62aae4;
+  --color-celeste-500: #3d8fd4;
+  --color-celeste-600: #2a72b0;
+
+  /* Semantic state only. */
+  --color-signal-positive: #4ec9a5;
+  --color-signal-warning: #e0a458;
+  --color-signal-danger: #e0685f;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+}
+
+/* Shape consistency lock: cards 14px, controls 10px, period chips are the one
+   documented exception (full pill), and nothing else invents its own radius. */
+
+@layer base {
+  /* Tabular numerals everywhere a value can change under the user's eyes --
+     without this, a premium ticking from 12.40 to 9.80 makes the whole row
+     jitter horizontally while the quote refetches. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-celeste-400);
+    outline-offset: 2px;
+  }
+
+  /* Range inputs are the single most-used control in the product (the strike
+     slider), and the UA default looks like a 2009 form. Styled explicitly in
+     both engines. */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-ink-700);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-ink-700);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -7px;
+    height: 18px;
+    width: 18px;
+    border-radius: 999px;
+    background: var(--color-celeste-400);
+    border: 3px solid var(--color-ink-900);
+    box-shadow: 0 0 0 1px var(--color-celeste-600);
+    transition: transform 120ms ease;
+  }
+  input[type="range"]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 999px;
+    background: var(--color-celeste-400);
+    border: 3px solid var(--color-ink-900);
+    box-shadow: 0 0 0 1px var(--color-celeste-600);
+  }
+  input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(0.92);
+  }
+
+  /* Chrome/Safari render number inputs with spinners that collide with the
+     USDT suffix inside the field. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+/* The chart draws its own line on mount (see PayoffChart). Motion is low by
+   design here -- this is a financial instrument, not a showcase -- so the only
+   animation in the product is that one reveal, and it collapses to a static
+   drawn line under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Deliberately no unlayered `body { background: ... }` rule here: Tailwind v4
+   wraps its utilities in cascade layers, and an unlayered rule always beats a
+   layered one regardless of specificity, which is what silently overrode the
+   background class on <body> before this file was first simplified. The theme
+   is applied via utility classes in layout.tsx. */

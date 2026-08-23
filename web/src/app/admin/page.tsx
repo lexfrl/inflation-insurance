@@ -28,13 +28,13 @@ export default function AdminPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold">Admin</h1>
-        <p className="mt-1 text-white/60">Owner-only. Create periods and post CPI settlements.</p>
+        <p className="mt-1 text-paper-300">Owner-only. Create periods and post CPI settlements.</p>
       </div>
 
       {!isConnected ? (
         <p>Connect the owner wallet.</p>
       ) : !isOwner ? (
-        <p className="text-amber-400">
+        <p className="text-signal-warning">
           Connected address is not the contract owner ({owner as string}). Forms below will revert.
         </p>
       ) : null}
@@ -86,7 +86,7 @@ function CreatePeriodForm() {
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+    <div className="rounded-card border border-ink-700 bg-ink-850 p-6">
       <h2 className="mb-4 font-semibold">Create period</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Label" value={label} onChange={setLabel} />
@@ -101,16 +101,16 @@ function CreatePeriodForm() {
       <button
         disabled={write.isPending || receipt.isLoading}
         onClick={submit}
-        className="mt-4 rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
+        className="mt-4 rounded-control bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
       >
         {write.isPending || receipt.isLoading ? "Creating..." : "Create period"}
       </button>
-      {receipt.isSuccess && <p className="mt-2 text-sm text-emerald-400">Period created.</p>}
+      {receipt.isSuccess && <p className="mt-2 text-sm text-signal-positive">Period created.</p>}
       {/* A revert that still made it on-chain (e.g. probabilities not
           summing to 10000) makes this query end in isError instead of
           isSuccess (see lib/tx.ts) -- `write.error` alone misses it. */}
       {(write.error || txReverted(receipt)) && (
-        <p className="mt-2 text-sm text-red-400">
+        <p className="mt-2 text-sm text-signal-danger">
           {write.error?.message ?? txErrorMessage(receipt) ?? "Transaction reverted on-chain."}
         </p>
       )}
@@ -129,7 +129,7 @@ function PostSettlementForm() {
   useEffect(() => {}, []);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+    <div className="rounded-card border border-ink-700 bg-ink-850 p-6">
       <h2 className="mb-4 font-semibold">Post CPI settlement</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Period id" value={periodId} onChange={setPeriodId} />
@@ -146,13 +146,13 @@ function PostSettlementForm() {
             chainId,
           })
         }
-        className="mt-4 rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
+        className="mt-4 rounded-control bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
       >
         {write.isPending || receipt.isLoading ? "Posting..." : "Post settlement"}
       </button>
-      {receipt.isSuccess && <p className="mt-2 text-sm text-emerald-400">Settlement posted.</p>}
+      {receipt.isSuccess && <p className="mt-2 text-sm text-signal-positive">Settlement posted.</p>}
       {(write.error || txReverted(receipt)) && (
-        <p className="mt-2 text-sm text-red-400">
+        <p className="mt-2 text-sm text-signal-danger">
           {write.error?.message ?? txErrorMessage(receipt) ?? "Transaction reverted on-chain."}
         </p>
       )}
@@ -171,11 +171,11 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-white/60">{label}</span>
+      <span className="text-paper-300">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-white/10 bg-black/30 px-3 py-2"
+        className="rounded-control border border-ink-700 bg-ink-900 px-3 py-2"
       />
     </label>
   );

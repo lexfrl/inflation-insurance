@@ -8,6 +8,7 @@ import { useDemoTarget } from "@/lib/demo-mode";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
+import { Button, Callout, Card, Chip, Field, SectionTitle, Stat } from "@/components/ui";
 
 type Period = {
   label: string;
@@ -38,29 +39,27 @@ export default function LpPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Provide liquidity</h1>
-        <p className="mt-1 text-white/60">
-          Back a protection period with USDT and earn the premiums buyers pay for coverage,
-          minus whatever gets claimed.
-        </p>
-      </div>
+      <SectionTitle
+        title="Underwrite a period"
+        sub="Deposit USDT to back a protection period. You earn the premiums buyers pay, minus whatever they claim if inflation clears their cover level."
+      />
 
-      {!periods || periods.length === 0 ? (
-        <p className="text-white/50">No periods yet.</p>
+      {periods === undefined ? (
+        <Card className="h-64 animate-pulse" />
+      ) : periods.length === 0 ? (
+        <Card className="p-10 text-center">
+          <p className="text-paper-100">No periods to underwrite yet.</p>
+          <p className="mt-2 text-sm text-paper-500">
+            Deposits open when an operator creates a period, and close the moment the first policy sells.
+          </p>
+        </Card>
       ) : (
         <>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {periods.map((p, i) => (
-              <button
-                key={i}
-                onClick={() => setSelected(i)}
-                className={`rounded-full px-4 py-1.5 text-sm ${
-                  selected === i ? "bg-white text-black" : "bg-white/10 text-white/70 hover:bg-white/20"
-                }`}
-              >
+              <Chip key={i} active={selected === i} onClick={() => setSelected(i)}>
                 {(p as Period).label}
-              </button>
+              </Chip>
             ))}
           </div>
 
@@ -152,127 +151,130 @@ function PoolPanel({
   const remaining = period.totalCollateral + period.totalPremiums - period.totalClaimed;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <div className="grid grid-cols-2 gap-4 rounded-xl bg-black/30 p-4 text-center sm:grid-cols-4">
-        <Stat label="Collateral" value={`${formatUsdt(period.totalCollateral)} USDT`} />
-        <Stat label="Premiums collected" value={`${formatUsdt(period.totalPremiums)} USDT`} />
-        <Stat label="Max liability sold" value={`${formatUsdt(period.totalMaxLiability)} USDT`} />
-        <Stat label="Pool remaining" value={`${formatUsdt(remaining)} USDT`} />
-      </div>
+    <div className="flex flex-col gap-4">
+      <Card className="grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
+        <Stat label="Collateral" value={formatUsdt(period.totalCollateral)} unit="USDT" />
+        <Stat label="Premiums earned" value={formatUsdt(period.totalPremiums)} unit="USDT" tone="positive" />
+        <Stat label="Max liability sold" value={formatUsdt(period.totalMaxLiability)} unit="USDT" />
+        <Stat label="Pool remaining" value={formatUsdt(remaining)} unit="USDT" />
+      </Card>
 
-      {shares !== undefined && shares > 0n && (
-        <p className="mt-4 text-sm text-white/60">
-          Your position: {formatUsdt(shares)} USDT deposited ({formatBps(shareOfPoolBps)} of the pool)
-        </p>
-      )}
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex flex-1 flex-col gap-1 text-sm">
-          <span className="text-white/60">Deposit amount</span>
-          <input
-            type="number"
-            min={0}
-            value={amountInput}
-            onChange={(e) => setAmountInput(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2"
-          />
-        </label>
-
-        {!isConnected ? (
-          <p className="text-white/50">Connect wallet</p>
-        ) : !saleOpen ? (
-          <span className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white/50">Deposits closed</span>
-        ) : needsApproval ? (
-          <button
-            disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
-            onClick={() =>
-              approve.writeContract({
-                address: addresses.usdt,
-                abi: mockUsdtAbi,
-                functionName: "approve",
-                // Max, not exact amount -- see the buyer page for why.
-                args: [addresses.insurance, maxUint256],
-                chainId,
-              })
-            }
-            className="rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
-          >
-            {approve.isPending || approveReceipt.isLoading ? "Approving..." : "Approve USDT"}
-          </button>
-        ) : (
-          <button
-            disabled={deposit.isPending || depositReceipt.isLoading || amount === 0n}
-            onClick={() =>
-              deposit.writeContract({
-                address: addresses.insurance,
-                abi: inflationHedgeAbi,
-                functionName: "deposit",
-                args: [BigInt(periodId), amount],
-                chainId,
-              })
-            }
-            className="rounded-lg bg-emerald-500 px-6 py-2 font-medium text-black disabled:opacity-50"
-          >
-            {deposit.isPending || depositReceipt.isLoading ? "Depositing..." : "Deposit"}
-          </button>
-        )}
-      </div>
-
-      <div className="mt-4">
-        <button
-          disabled={
-            !isConnected ||
-            !canWithdraw ||
-            !shares ||
-            withdraw.isPending ||
-            withdrawReceipt.isLoading ||
-            withdrawReceipt.isSuccess
-          }
-          onClick={() =>
-            withdraw.writeContract({
-              address: addresses.insurance,
-              abi: inflationHedgeAbi,
-              functionName: "withdraw",
-              args: [BigInt(periodId)],
-              chainId,
-            })
-          }
-          className="w-full rounded-lg border border-white/20 py-2 text-sm font-medium disabled:opacity-40"
-        >
-          {withdraw.isPending || withdrawReceipt.isLoading
-            ? "Withdrawing..."
-            : withdrawReceipt.isSuccess
-              ? "Withdrawn"
-              : !period.settled
-                ? "Withdraw (available after settlement)"
-                : !canWithdraw
-                  ? `Withdraw (available after ${formatDate(period.claimDeadline)})`
-                  : "Withdraw my share"}
-        </button>
-        {/* Pre-flight rejections land in `.error`; a revert that still made
-            it on-chain (e.g. clicking withdraw twice -- "already withdrawn")
-            makes the matching receipt query end in isError instead (see
-            lib/tx.ts), so both need checking or the second click looks like
-            a no-op. */}
-        {(approve.error || deposit.error || withdraw.error || approveReverted || depositReverted || withdrawReverted) && (
-          <p className="mt-2 text-center text-sm text-red-400">
-            {(approve.error ?? deposit.error ?? withdraw.error)?.message.split("\n")[0] ??
-              txErrorMessage(approveReceipt) ??
-              txErrorMessage(depositReceipt) ??
-              txErrorMessage(withdrawReceipt) ??
-              "Transaction reverted on-chain."}
+      <Card className="p-5">
+        {shares !== undefined && shares > 0n && (
+          <p className="mb-5 text-sm text-paper-300">
+            Your position: <span className="font-mono tnum">{formatUsdt(shares)} USDT</span> deposited,{" "}
+            <span className="font-mono tnum">{formatBps(shareOfPoolBps)}</span> of the pool.
           </p>
         )}
-      </div>
-    </div>
-  );
-}
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs uppercase text-white/40">{label}</div>
-      <div className="text-sm font-semibold">{value}</div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Field label="Deposit amount" hint="Deposits close as soon as the first policy in this period sells.">
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  className="w-full rounded-control border border-ink-600 bg-ink-900 px-3 py-2.5 pr-16 font-mono text-paper-100 tnum focus:border-celeste-500"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paper-500">
+                  USDT
+                </span>
+              </div>
+            </Field>
+          </div>
+
+          <div className="sm:pb-6">
+            {!isConnected ? (
+              <span className="text-sm text-paper-500">Connect wallet</span>
+            ) : !saleOpen ? (
+              <span className="text-sm text-paper-500">Deposits closed</span>
+            ) : needsApproval ? (
+              <Button
+                disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
+                onClick={() =>
+                  approve.writeContract({
+                    address: addresses.usdt,
+                    abi: mockUsdtAbi,
+                    functionName: "approve",
+                    // Max, not exact amount -- see the buyer page for why.
+                    args: [addresses.insurance, maxUint256],
+                    chainId,
+                  })
+                }
+              >
+                {approve.isPending || approveReceipt.isLoading ? "Approving" : "Approve USDT"}
+              </Button>
+            ) : (
+              <Button
+                disabled={deposit.isPending || depositReceipt.isLoading || amount === 0n}
+                onClick={() =>
+                  deposit.writeContract({
+                    address: addresses.insurance,
+                    abi: inflationHedgeAbi,
+                    functionName: "deposit",
+                    args: [BigInt(periodId), amount],
+                    chainId,
+                  })
+                }
+              >
+                {deposit.isPending || depositReceipt.isLoading ? "Depositing" : "Deposit"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-ink-700 pt-5">
+          <Button
+            variant="secondary"
+            disabled={
+              !isConnected ||
+              !canWithdraw ||
+              !shares ||
+              withdraw.isPending ||
+              withdrawReceipt.isLoading ||
+              withdrawReceipt.isSuccess
+            }
+            onClick={() =>
+              withdraw.writeContract({
+                address: addresses.insurance,
+                abi: inflationHedgeAbi,
+                functionName: "withdraw",
+                args: [BigInt(periodId)],
+                chainId,
+              })
+            }
+            className="w-full"
+          >
+            {withdraw.isPending || withdrawReceipt.isLoading
+              ? "Withdrawing"
+              : withdrawReceipt.isSuccess
+                ? "Withdrawn"
+                : !period.settled
+                  ? "Withdraw (available after settlement)"
+                  : !canWithdraw
+                    ? `Withdraw (available after ${formatDate(period.claimDeadline)})`
+                    : "Withdraw my share"}
+          </Button>
+          {/* Pre-flight rejections land in `.error`; a revert that still made
+              it on-chain (e.g. clicking withdraw twice -- "already withdrawn")
+              makes the matching receipt query end in isError instead (see
+              lib/tx.ts), so both need checking or the second click looks like
+              a no-op. */}
+          {(approve.error || deposit.error || withdraw.error || approveReverted || depositReverted || withdrawReverted) && (
+            <div className="mt-3">
+              <Callout tone="danger">
+                {(approve.error ?? deposit.error ?? withdraw.error)?.message.split("\n")[0] ??
+                  txErrorMessage(approveReceipt) ??
+                  txErrorMessage(depositReceipt) ??
+                  txErrorMessage(withdrawReceipt) ??
+                  "Transaction reverted on-chain."}
+              </Callout>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

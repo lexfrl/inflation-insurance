@@ -28,7 +28,7 @@ export const LOCAL_TEST_ACCOUNTS = [
 ] as const;
 
 const { connectors: walletConnectors } = getDefaultWallets({
-  appName: "IPC Shield",
+  appName: "Hedgy",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
 });
 

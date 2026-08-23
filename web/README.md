@@ -1,6 +1,6 @@
 # web/
 
-Next.js frontend for IPC Shield. See the
+Next.js frontend for Hedgy. See the
 [top-level README](../README.md) for the pitch, architecture, and deployed
 addresses.
 

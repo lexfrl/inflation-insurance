@@ -68,7 +68,7 @@ export function DevWalletPanel() {
   return (
     <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-2">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-amber-400">
+        <span className="font-medium text-signal-warning">
           {isLocalDev ? "Local test wallets (anvil only)" : "Demo mode: local anvil test wallets"}
           {reconnecting && " (reconnecting...)"}:
         </span>
@@ -82,7 +82,7 @@ export function DevWalletPanel() {
               disabled={isPending || isActive || reconnecting}
               onClick={() => connect({ connector })}
               className={`rounded-full px-3 py-1 ${
-                isActive ? "bg-amber-500 text-black" : "bg-black/30 text-amber-200 hover:bg-black/50"
+                isActive ? "bg-amber-500 text-black" : "bg-ink-900 text-amber-200 hover:bg-black/50"
               }`}
             >
               {account.label}
@@ -90,7 +90,7 @@ export function DevWalletPanel() {
           );
         })}
         {isConnected && (
-          <button onClick={() => disconnect()} className="rounded-full bg-black/30 px-3 py-1 text-amber-200 hover:bg-black/50">
+          <button onClick={() => disconnect()} className="rounded-full bg-ink-900 px-3 py-1 text-amber-200 hover:bg-black/50">
             Disconnect
           </button>
         )}
