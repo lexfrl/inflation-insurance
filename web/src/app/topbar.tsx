@@ -2,8 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Wordmark } from "@/components/logo";
+import { AccountButton } from "./account-button";
 
 /* Top bar geometry from the Figma node tree: the bar is 65 tall, the
    breadcrumb sits 32 in from the left edge, and the control cluster on the
@@ -30,7 +30,7 @@ export function Topbar() {
       </Link>
       <h1 className="hidden text-sm text-text lg:block">{TITLES[pathname] ?? "Hedgy"}</h1>
       <div className="flex h-10 items-center">
-        <ConnectButton showBalance={false} />
+        <AccountButton />
       </div>
     </header>
   );
