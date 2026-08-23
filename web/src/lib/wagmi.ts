@@ -44,8 +44,15 @@ const { connectors: walletConnectors } = getDefaultWallets({
 // reach it, regardless of where the page itself was served from.
 const mockConnectors = LOCAL_TEST_ACCOUNTS.map((a) => mock({ accounts: [a.address as `0x${string}`] }));
 
+// `chains` is ordered with `activeChain` first -- wagmi/RainbowKit fall back
+// to the first entry as the default network for a fresh WalletConnect
+// session and other "no chain selected yet" cases, so a foundry-first tuple
+// silently pointed a real Base Sepolia build at localhost:8545 until a
+// manual network switch. `initialChain` on RainbowKitProvider (providers.tsx)
+// closes the other half of the gap: it's what RainbowKit's own "wrong
+// network" prompt targets on connect.
 export const config = createConfig({
-  chains: [foundry, baseSepolia],
+  chains: [activeChain, activeChain === foundry ? baseSepolia : foundry],
   transports: {
     [foundry.id]: http(chainId === foundry.id ? rpcUrl : undefined),
     [baseSepolia.id]: http(chainId === baseSepolia.id ? rpcUrl : undefined),

@@ -4,7 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
-import { config } from "@/lib/wagmi";
+import { activeChain, config } from "@/lib/wagmi";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             Both are pinned here so the wallet flow matches the product. */}
         <RainbowKitProvider
           locale="en-US"
+          initialChain={activeChain}
           theme={darkTheme({
             accentColor: "#ffc34c",
             accentColorForeground: "#1a1206",
