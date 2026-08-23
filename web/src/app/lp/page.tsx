@@ -44,8 +44,8 @@ export default function LpPage() {
   return (
     <div className="flex flex-col gap-8">
       <SectionTitle
-        title="Underwrite a period"
-        sub="Deposit USDT to back a protection period. You earn the premiums buyers pay, minus whatever they claim if inflation clears their cover level."
+        title="Earn by backing cover"
+        sub="Put up USDT so other people can buy cover. You keep what they pay for it, minus any payouts if inflation runs hot. You are the insurer here."
       />
 
       {/* Same reasoning as the buyer page: a failed read must not read as
@@ -172,8 +172,8 @@ function PoolPanel({
     <div className="flex flex-col gap-4">
       <Card className="grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
         <Stat label="Collateral" value={formatUsdt(period.totalCollateral)} unit="USDT" />
-        <Stat label="Premiums earned" value={formatUsdt(period.totalPremiums)} unit="USDT" tone="positive" />
-        <Stat label="Max liability sold" value={formatUsdt(period.totalMaxLiability)} unit="USDT" />
+        <Stat label="Paid in by buyers" value={formatUsdt(period.totalPremiums)} unit="USDT" tone="positive" />
+        <Stat label="Most you could pay out" value={formatUsdt(period.totalMaxLiability)} unit="USDT" />
         <Stat label="Pool remaining" value={formatUsdt(remaining)} unit="USDT" />
       </Card>
 

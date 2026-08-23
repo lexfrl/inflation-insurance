@@ -92,7 +92,7 @@ export function PayoffChart({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label={`Payout curve: nothing below ${(strikeBps / 100).toFixed(2)} percent inflation, rising to a maximum of ${maxPayout.toFixed(2)} USDT at ${(capBps / 100).toFixed(2)} percent and capped there.`}
+        aria-label={`Payout curve: nothing below ${(strikeBps / 100).toFixed(2)} percent inflation, then rising to a maximum of ${maxPayout.toFixed(2)} USDT at ${(capBps / 100).toFixed(2)} percent, where it stops growing.`}
       >
         <defs>
           <linearGradient id={`fill-${uid}`} x1="0" y1="0" x2="0" y2="1">
@@ -166,7 +166,7 @@ export function PayoffChart({
           y={PAD.t + 11}
           className="fill-accent-300 font-mono text-[11px]"
         >
-          strike {(drawnStrike / 100).toFixed(2)}%
+          your level {(drawnStrike / 100).toFixed(2)}%
         </text>
 
         {/* Cap: where the payout stops growing. */}
@@ -180,7 +180,7 @@ export function PayoffChart({
           strokeDasharray="3 4"
         />
         <text x={x(capBps) + 6} y={PAD.t + 11} className="fill-paper-600 font-mono text-[11px]">
-          cap {(capBps / 100).toFixed(2)}%
+          covered to {(capBps / 100).toFixed(2)}%
         </text>
 
         <path d={areaPath} fill={`url(#fill-${uid})`} />

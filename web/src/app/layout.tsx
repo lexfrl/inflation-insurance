@@ -35,7 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <footer className="border-t border-ink-800 px-6 py-6">
             <div className="mx-auto flex max-w-4xl flex-col gap-1 text-xs text-paper-600">
               <span>
-                Payouts settle against the official CPI print for the period, in USDT, on-chain.
+                Payouts settle against the official inflation figure for the period, in USDT, on-chain.
               </span>
               <span>
                 Demo deployment built at Aleph Hackathon. Periods and CPI values are operator-posted.

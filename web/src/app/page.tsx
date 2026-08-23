@@ -15,7 +15,8 @@ import { formatBps, formatCountdown, formatDate, formatUsdt, parseUsdt } from "@
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
 import { PayoffChart } from "@/components/payoff-chart";
-import { Button, Callout, Card, Chip, Field, SectionTitle, Stat } from "@/components/ui";
+import { Button, Callout, Card, Chip, Field, Stat } from "@/components/ui";
+import { Intro } from "@/components/intro";
 
 type Period = {
   label: string;
@@ -63,10 +64,7 @@ export default function BuyerPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionTitle
-        title="Protect your spending from inflation"
-        sub="Tell us how much you spend in a month and the inflation level you want covered. If prices rise past it, you get paid in proportion to how far past. No shares, no odds to trade."
-      />
+      <Intro />
 
       {/* An unreachable RPC never resolves this read, so gating the skeleton
           on `data === undefined` alone leaves it pulsing forever. That is
@@ -96,7 +94,9 @@ export default function BuyerPage() {
         </Card>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2">
+          <h2 className="text-lg font-semibold tracking-tight text-paper-100">Buy cover</h2>
+
+          <div className="-mt-4 flex flex-wrap gap-2">
             {periods.map((p, i) => (
               <Chip
                 key={i}
@@ -210,8 +210,8 @@ function BuyForm({
             settlementCpiBps={period.settled ? Number(period.settlementCpiBps) : null}
           />
           <p className="mt-3 text-xs leading-relaxed text-paper-600">
-            Bars are the CPI outcomes this period is priced against, with the probability of
-            each. The line is what you receive at that outcome.
+            Bars show where inflation is expected to land, and how likely each outcome is. The
+            line is what you receive if it lands there.
           </p>
 
           <div className="mt-5">
@@ -363,9 +363,9 @@ function PeriodStrip({ period }: { period: Period }) {
     <Card className="grid grid-cols-2 gap-6 p-5 sm:grid-cols-4">
       <Stat label="Buying closes in" value={formatCountdown(saleLeft)} />
       <Stat label="Covers inflation up to" value={formatBps(period.capBps)} />
-      <Stat label="Backed by" value={formatUsdt(backing)} unit="USDT" tone="accent" />
+      <Stat label="Money backing payouts" value={formatUsdt(backing)} unit="USDT" tone="accent" />
       <Stat
-        label="Cover already sold"
+        label="Cover sold so far"
         value={formatUsdt(period.totalMaxLiability)}
         unit="USDT"
         tone={soldOut ? "positive" : "default"}
@@ -402,15 +402,15 @@ function ScenarioTable({
 
   return (
     <div>
-      <div className="mb-2 text-sm font-medium text-paper-300">If inflation comes in at</div>
+      <div className="mb-2 text-sm font-medium text-paper-300">What you would get</div>
       <div className="overflow-hidden rounded-control border border-ink-700">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-ink-800 text-[11px] uppercase tracking-[0.06em] text-paper-600">
-              <th className="px-3 py-2 text-left font-medium">CPI</th>
+              <th className="px-3 py-2 text-left font-medium">Inflation</th>
               <th className="px-3 py-2 text-right font-medium">Chance</th>
               <th className="px-3 py-2 text-right font-medium">You get</th>
-              <th className="px-3 py-2 text-right font-medium">Net</th>
+              <th className="px-3 py-2 text-right font-medium">After cost</th>
             </tr>
           </thead>
           <tbody>
