@@ -10,7 +10,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
-import { activeChain, contractAddresses } from "@/lib/wagmi";
+import { useDemoTarget } from "@/lib/demo-mode";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
@@ -35,12 +35,13 @@ type Period = {
 
 export default function BuyerPage() {
   const { address, isConnected } = useAccount();
+  const { chainId, addresses } = useDemoTarget();
 
   const { data: periods, refetch: refetchPeriods } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "listPeriods",
-    chainId: activeChain.id,
+    chainId,
     query: { refetchInterval: 4000 },
   });
 
@@ -113,6 +114,7 @@ function BuyForm({
   onBought: () => void;
 }) {
   const { address } = useAccount();
+  const { chainId, addresses } = useDemoTarget();
   const [notionalInput, setNotionalInput] = useState("1000");
   const [strikeBps, setStrikeBps] = useState(300);
 
@@ -120,11 +122,11 @@ function BuyForm({
   const capBps = Number(period.capBps);
 
   const { data: quoteData, isFetching: quoting } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "quote",
     args: [BigInt(periodId), notional, BigInt(strikeBps)],
-    chainId: activeChain.id,
+    chainId,
     query: { enabled: notional > 0n && strikeBps < capBps },
   });
   const [premium, maxPayout] = quoteData ?? [undefined, undefined];
@@ -135,11 +137,11 @@ function BuyForm({
   // because this read only starts polling once `address` is defined, and
   // its first tick can land before the approve tx even lands.
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: contractAddresses.usdt,
+    address: addresses.usdt,
     abi: mockUsdtAbi,
     functionName: "allowance",
-    args: address ? [address, contractAddresses.insurance] : undefined,
-    chainId: activeChain.id,
+    args: address ? [address, addresses.insurance] : undefined,
+    chainId,
     query: { enabled: !!address, refetchInterval: 4000 },
   });
 
@@ -222,15 +224,15 @@ function BuyForm({
             disabled={approve.isPending || approveReceipt.isLoading || premium === undefined}
             onClick={() =>
               approve.writeContract({
-                address: contractAddresses.usdt,
+                address: addresses.usdt,
                 abi: mockUsdtAbi,
                 functionName: "approve",
                 // Approve max, not the exact premium: moving the strike
                 // slider changes the quote, which would otherwise force a
                 // second approval mid-demo. MockUSDT is a fake testnet
                 // token, so an unlimited approval carries no real risk.
-                args: [contractAddresses.insurance, maxUint256],
-                chainId: activeChain.id,
+                args: [addresses.insurance, maxUint256],
+                chainId,
               })
             }
             className="w-full rounded-lg bg-white py-3 font-medium text-black disabled:opacity-50"
@@ -242,11 +244,11 @@ function BuyForm({
             disabled={buy.isPending || buyReceipt.isLoading || premium === undefined}
             onClick={() =>
               buy.writeContract({
-                address: contractAddresses.insurance,
+                address: addresses.insurance,
                 abi: inflationHedgeAbi,
                 functionName: "buyPolicy",
                 args: [BigInt(periodId), notional, BigInt(strikeBps)],
-                chainId: activeChain.id,
+                chainId,
               })
             }
             className="w-full rounded-lg bg-emerald-500 py-3 font-medium text-black disabled:opacity-50"
@@ -279,28 +281,30 @@ function BuyForm({
 }
 
 function MyPolicies({ address }: { address: `0x${string}` }) {
+  const { chainId, addresses } = useDemoTarget();
+
   // refetchInterval so a just-bought policy shows up here without needing
   // BuyForm to reach into this sibling component's query -- this is exactly
   // the read a judge is watching right after they click "Buy protection".
   const { data: policyIds } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "getPoliciesOf",
     args: [address],
-    chainId: activeChain.id,
+    chainId,
     query: { refetchInterval: 4000 },
   });
 
   const contracts = useMemo(
     () =>
       (policyIds ?? []).map((id) => ({
-        address: contractAddresses.insurance,
+        address: addresses.insurance,
         abi: inflationHedgeAbi,
         functionName: "getPolicy" as const,
         args: [id] as const,
-        chainId: activeChain.id,
+        chainId,
       })),
-    [policyIds],
+    [policyIds, addresses.insurance, chainId],
   );
 
   const { data: policies, refetch } = useReadContracts({
@@ -350,12 +354,14 @@ function PolicyRow({
   };
   onClaimed: () => void;
 }) {
+  const { chainId, addresses } = useDemoTarget();
+
   const { data: period } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "getPeriod",
     args: [policy.periodId],
-    chainId: activeChain.id,
+    chainId,
   });
 
   const claim = useWriteContract();
@@ -397,11 +403,11 @@ function PolicyRow({
             disabled={!settled || expired || claim.isPending || claimReceipt.isLoading}
             onClick={() =>
               claim.writeContract({
-                address: contractAddresses.insurance,
+                address: addresses.insurance,
                 abi: inflationHedgeAbi,
                 functionName: "claim",
                 args: [policyId],
-                chainId: activeChain.id,
+                chainId,
               })
             }
             className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-40"

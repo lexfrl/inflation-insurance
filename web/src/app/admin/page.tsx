@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { inflationHedgeAbi } from "@/lib/generated";
-import { activeChain, contractAddresses } from "@/lib/wagmi";
+import { useDemoTarget } from "@/lib/demo-mode";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 
 // Deliberately rough / unstyled: this is the operator-only surface, not the
@@ -13,12 +13,13 @@ import { txErrorMessage, txReverted } from "@/lib/tx";
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
+  const { chainId, addresses } = useDemoTarget();
 
   const { data: owner } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "owner",
-    chainId: activeChain.id,
+    chainId,
   });
 
   const isOwner = !!address && !!owner && address.toLowerCase() === (owner as string).toLowerCase();
@@ -54,13 +55,14 @@ function CreatePeriodForm() {
   const [buckets, setBuckets] = useState("200,400,600,800");
   const [probs, setProbs] = useState("4000,3000,2000,1000");
 
+  const { chainId, addresses } = useDemoTarget();
   const write = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: write.data });
 
   const submit = () => {
     const now = Math.floor(Date.now() / 1000);
     write.writeContract({
-      address: contractAddresses.insurance,
+      address: addresses.insurance,
       abi: inflationHedgeAbi,
       functionName: "createPeriod",
       args: [
@@ -79,7 +81,7 @@ function CreatePeriodForm() {
           probBps: probs.split(",").map((s) => BigInt(s.trim())),
         },
       ],
-      chainId: activeChain.id,
+      chainId,
     });
   };
 
@@ -120,6 +122,7 @@ function PostSettlementForm() {
   const [periodId, setPeriodId] = useState("0");
   const [cpiBps, setCpiBps] = useState("500");
 
+  const { chainId, addresses } = useDemoTarget();
   const write = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: write.data });
 
@@ -136,11 +139,11 @@ function PostSettlementForm() {
         disabled={write.isPending || receipt.isLoading}
         onClick={() =>
           write.writeContract({
-            address: contractAddresses.insurance,
+            address: addresses.insurance,
             abi: inflationHedgeAbi,
             functionName: "postSettlement",
             args: [BigInt(periodId), BigInt(cpiBps)],
-            chainId: activeChain.id,
+            chainId,
           })
         }
         className="mt-4 rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"

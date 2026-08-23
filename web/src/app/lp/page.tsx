@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { maxUint256 } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { inflationHedgeAbi, mockUsdtAbi } from "@/lib/generated";
-import { activeChain, contractAddresses } from "@/lib/wagmi";
+import { useDemoTarget } from "@/lib/demo-mode";
 import { formatBps, formatDate, formatUsdt, parseUsdt } from "@/lib/format";
 import { txErrorMessage, txReverted } from "@/lib/tx";
 import { useNow } from "@/lib/useNow";
@@ -23,12 +23,13 @@ type Period = {
 
 export default function LpPage() {
   const { address, isConnected } = useAccount();
+  const { chainId, addresses } = useDemoTarget();
 
   const { data: periods, refetch: refetchPeriods } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "listPeriods",
-    chainId: activeChain.id,
+    chainId,
     query: { refetchInterval: 4000 },
   });
 
@@ -91,6 +92,7 @@ function PoolPanel({
   isConnected: boolean;
   onChanged: () => void;
 }) {
+  const { chainId, addresses } = useDemoTarget();
   const [amountInput, setAmountInput] = useState("1000");
   const amount = parseUsdt(amountInput);
   const now = useNow();
@@ -98,11 +100,11 @@ function PoolPanel({
   const canWithdraw = period.settled && now > Number(period.claimDeadline);
 
   const { data: position, refetch: refetchPosition } = useReadContract({
-    address: contractAddresses.insurance,
+    address: addresses.insurance,
     abi: inflationHedgeAbi,
     functionName: "lpPosition",
     args: address ? [BigInt(periodId), address] : undefined,
-    chainId: activeChain.id,
+    chainId,
     query: { enabled: !!address },
   });
   const [shares, shareOfPoolBps] = position ?? [undefined, undefined];
@@ -111,11 +113,11 @@ function PoolPanel({
   // force-refetches on success. See the matching comment on the buyer
   // page's allowance read for why the timer alone isn't enough.
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: contractAddresses.usdt,
+    address: addresses.usdt,
     abi: mockUsdtAbi,
     functionName: "allowance",
-    args: address ? [address, contractAddresses.insurance] : undefined,
-    chainId: activeChain.id,
+    args: address ? [address, addresses.insurance] : undefined,
+    chainId,
     query: { enabled: !!address, refetchInterval: 4000 },
   });
   const needsApproval = allowance === undefined || allowance < amount;
@@ -185,12 +187,12 @@ function PoolPanel({
             disabled={approve.isPending || approveReceipt.isLoading || amount === 0n}
             onClick={() =>
               approve.writeContract({
-                address: contractAddresses.usdt,
+                address: addresses.usdt,
                 abi: mockUsdtAbi,
                 functionName: "approve",
                 // Max, not exact amount -- see the buyer page for why.
-                args: [contractAddresses.insurance, maxUint256],
-                chainId: activeChain.id,
+                args: [addresses.insurance, maxUint256],
+                chainId,
               })
             }
             className="rounded-lg bg-white px-6 py-2 font-medium text-black disabled:opacity-50"
@@ -202,11 +204,11 @@ function PoolPanel({
             disabled={deposit.isPending || depositReceipt.isLoading || amount === 0n}
             onClick={() =>
               deposit.writeContract({
-                address: contractAddresses.insurance,
+                address: addresses.insurance,
                 abi: inflationHedgeAbi,
                 functionName: "deposit",
                 args: [BigInt(periodId), amount],
-                chainId: activeChain.id,
+                chainId,
               })
             }
             className="rounded-lg bg-emerald-500 px-6 py-2 font-medium text-black disabled:opacity-50"
@@ -228,11 +230,11 @@ function PoolPanel({
           }
           onClick={() =>
             withdraw.writeContract({
-              address: contractAddresses.insurance,
+              address: addresses.insurance,
               abi: inflationHedgeAbi,
               functionName: "withdraw",
               args: [BigInt(periodId)],
-              chainId: activeChain.id,
+              chainId,
             })
           }
           className="w-full rounded-lg border border-white/20 py-2 text-sm font-medium disabled:opacity-40"
