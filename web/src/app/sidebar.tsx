@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartLineUp, Coins, Gauge, ShieldCheck, SlidersHorizontal, Sparkle } from "@phosphor-icons/react";
+import { ChartBar, ChartLineUp, Coins, Gauge, ShieldCheck, SlidersHorizontal, Sparkle } from "@phosphor-icons/react";
 import { Wordmark } from "@/components/logo";
 
 /* Persistent left rail. Every measurement here is read off the Figma node
@@ -21,6 +21,7 @@ const LINKS = [
   { href: "/profile", label: "Dashboard", Icon: Gauge },
   { href: "/protect", label: "Buy cover", Icon: ShieldCheck },
   { href: "/earn", label: "Earn", Icon: Coins },
+  { href: "/stats", label: "Stats", Icon: ChartBar },
 ] as const;
 
 const itemBase =

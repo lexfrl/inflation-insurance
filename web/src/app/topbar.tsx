@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   "/profile": "Dashboard",
   "/protect": "Buy cover",
   "/earn": "Earn",
+  "/stats": "Stats",
   "/admin": "Operator",
 };
 
