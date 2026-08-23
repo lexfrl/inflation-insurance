@@ -140,6 +140,40 @@ premiums collected) − (all payouts claimed)*. `shares[lp]` is never zeroed
 on withdrawal — only a separate `withdrawn` flag flips — so a deposit's
 history stays readable after the fact.
 
+### How much LP collateral does a policy need?
+
+Not the notional — only the **capped max payout**, since that's the
+worst-case liability the pool can ever owe on that policy:
+
+```
+collateral needed = notional × (cap − strike) / 10000     -- this policy's maxPayout
+```
+
+checked against the pool's existing spare capacity (`buyPolicy`'s solvency
+invariant, before this policy's own premium is added):
+
+```
+totalCollateral + totalPremiums(existing)  ≥  totalMaxLiability(existing) + this policy's maxPayout
+```
+
+Example: covering **$1,000 of spending, cap 8%** (our deployed periods' cap
+— `strikeBps` must be strictly below `capBps`, so 8% itself isn't a valid
+strike here):
+
+| Strike | maxPayout on $1,000 | LP collateral needed (fresh pool) |
+|---|---|---|
+| 0% (protects against any inflation, worst case) | $80.00 | $80 |
+| 3% | $50.00 | $50 |
+| 4% | $40.00 | $40 |
+| 5% | $30.00 | $30 |
+
+Lower strike → more of the CPI range pays out → bigger liability → more
+collateral required; a strike close to the cap needs correspondingly less.
+If the pool already backs other policies, their premiums count toward this
+one too — the real check is against the pool's spare capacity
+(`totalCollateral + totalPremiums − totalMaxLiability`), not a fixed
+per-policy minimum.
+
 ## Architecture
 
 Three roles share one pool per period — nobody but the buyer ever sees a
