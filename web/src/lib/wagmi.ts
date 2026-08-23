@@ -32,12 +32,17 @@ const { connectors: walletConnectors } = getDefaultWallets({
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
 });
 
-// Only added when targeting local anvil -- these must never appear in a
-// Base Sepolia / production build. Each is a distinct connector instance
-// (own uid) even though they all share the literal type id "mock".
-const mockConnectors = isLocalDev
-  ? LOCAL_TEST_ACCOUNTS.map((a) => mock({ accounts: [a.address as `0x${string}`] }))
-  : [];
+// Registered on every build, including a Base Sepolia / production one --
+// merely *registering* a connector does nothing by itself (nothing signs or
+// sends until one is clicked), and `dev-wallet-panel.tsx` gates whether
+// these are ever offered in the UI behind an explicit, off-by-default demo
+// toggle (see `lib/demo-mode.ts`) so they never appear to a production
+// visitor by accident. What makes these usable from *any* build, not just
+// a local-anvil one, is `transports[foundry.id]` below: it always resolves
+// to `http://127.0.0.1:8545` when the build doesn't target foundry, so a
+// browser on a machine that also has `anvil` running locally can still
+// reach it, regardless of where the page itself was served from.
+const mockConnectors = LOCAL_TEST_ACCOUNTS.map((a) => mock({ accounts: [a.address as `0x${string}`] }));
 
 export const config = createConfig({
   chains: [foundry, baseSepolia],
