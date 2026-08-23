@@ -54,9 +54,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <MobileNav />
               <Ticker />
               <DevWalletPanel />
-              <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">{children}</main>
+              <main className="w-full flex-1 px-5 py-6">{children}</main>
               <footer className="border-t border-surface-700 px-5 py-6">
-                <div className="mx-auto flex max-w-6xl flex-col gap-1 text-xs text-content-600">
+                <div className="flex flex-col gap-1 text-xs text-content-600">
                   <span>
                     Payouts settle against the official inflation figure for the period, in USDT,
                     on-chain.

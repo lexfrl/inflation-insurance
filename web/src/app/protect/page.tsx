@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { maxUint256 } from "viem";
 import {
   useAccount,
@@ -35,7 +36,17 @@ type Period = {
   totalClaimed: bigint;
 };
 
+/* useSearchParams needs a Suspense boundary above it for prerendering, so the
+   page body is split out and wrapped here. */
 export default function BuyerPage() {
+  return (
+    <Suspense fallback={<Card className="h-[420px] animate-pulse" />}>
+      <BuyerPageBody />
+    </Suspense>
+  );
+}
+
+function BuyerPageBody() {
   const { address, isConnected } = useAccount();
   const { chainId, addresses } = useDemoTarget();
 
@@ -142,8 +153,10 @@ function BuyForm({
 }) {
   const { address } = useAccount();
   const { chainId, addresses } = useDemoTarget();
-  const [notionalInput, setNotionalInput] = useState("1000");
-  const [strikeBps, setStrikeBps] = useState(300);
+  const params = useSearchParams();
+  // Seeded once from the dashboard's prompt panel, then owned by this form.
+  const [notionalInput, setNotionalInput] = useState(() => params.get("spend") ?? "1000");
+  const [strikeBps, setStrikeBps] = useState(() => Number(params.get("strike") ?? 300));
 
   const notional = parseUsdt(notionalInput);
   const capBps = Number(period.capBps);

@@ -27,6 +27,15 @@ export function Sidebar() {
         </Link>
       </div>
 
+      <div className="px-3 pb-1 pt-2">
+        <Link
+          href="/protect"
+          className="block rounded-control bg-accent-400 py-2 text-center text-sm font-medium text-white transition-colors [transition-duration:var(--dur-fast)] hover:bg-accent-300"
+        >
+          Buy cover
+        </Link>
+      </div>
+
       <nav className="flex flex-1 flex-col gap-0.5 px-3 py-3">
         {LINKS.map(({ href, label, Icon }) => {
           const active = pathname === href;
